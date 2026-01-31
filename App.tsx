@@ -7,7 +7,7 @@ import SidebarScript from './components/SidebarScript';
 import VisionStage from './components/VisionStage';
 import WorldBible from './components/WorldBible';
 import TimelineFooter from './components/TimelineFooter';
-import { analyzeManuscriptDeep, generateSceneWithBrief, generateNanoBananaImage } from './services/geminiService';
+import { analyzeManuscriptDeep, generateSceneWithBrief, generateNanoBananaImage, generateEmotionalAudio } from './services/geminiService';
 
 const App: React.FC = () => {
   const [scene, setScene] = useState<SceneState>(INITIAL_SCENE);
@@ -38,7 +38,8 @@ const App: React.FC = () => {
     if (isGenerating) return;
     setIsGenerating(true);
     try {
-      const data = await generateSceneWithBrief(scene.script);
+      // Integration: Passing manifest to the suggester for consistency
+      const data = await generateSceneWithBrief(scene.script, scene.manifest);
       const newFrames: Frame[] = (data.frames || []).map((f: any, i: number) => ({
         id: `frame-${i}-${Date.now()}`,
         title: f.title || `Frame ${i + 1}`,
@@ -46,7 +47,7 @@ const App: React.FC = () => {
         prompt: f.prompt,
         scriptSegment: f.scriptSegment,
         directorsBrief: f.directorsBrief,
-        image: 'https://placehold.co/1280x720/1a1a1a/ecb613?text=Painting+Scene...',
+        image: 'https://placehold.co/1280x720/1a1a1a/ecb613?text=Painting+Sequence...',
         isGenerating: true
       }));
 
@@ -54,7 +55,7 @@ const App: React.FC = () => {
       if (newFrames.length > 0) setSelectedFrameId(newFrames[0].id);
 
       for (let i = 0; i < newFrames.length; i++) {
-        const url = await generateNanoBananaImage(newFrames[i].prompt);
+        const url = await generateNanoBananaImage(newFrames[i].prompt, scene.manifest);
         if (url) {
           setScene(prev => ({
             ...prev,
@@ -69,7 +70,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handlePaintToEdit = async (frameId: string, instruction: string) => {
+  const handlePaintToEdit = async (frameId: string, instruction: string, coord?: { x: number, y: number }) => {
     const target = scene.frames.find(f => f.id === frameId);
     if (!target) return;
 
@@ -79,7 +80,8 @@ const App: React.FC = () => {
     }));
 
     try {
-      const editedUrl = await generateNanoBananaImage(instruction, target.image);
+      // Spatial Prompting: coordinates integrated
+      const editedUrl = await generateNanoBananaImage(instruction, scene.manifest, target.image, coord);
       if (editedUrl) {
         setScene(prev => ({
           ...prev,
@@ -93,6 +95,50 @@ const App: React.FC = () => {
         frames: prev.frames.map(f => f.id === frameId ? { ...f, isGenerating: false } : f)
       }));
     }
+  };
+
+  const handleSynthesizeAudio = async (frameId: string) => {
+    const frame = scene.frames.find(f => f.id === frameId);
+    if (!frame || !frame.scriptSegment) return;
+
+    setScene(prev => ({
+      ...prev,
+      frames: prev.frames.map(f => f.id === frameId ? { ...f, isGeneratingAudio: true } : f)
+    }));
+
+    try {
+      const audioBase64 = await generateEmotionalAudio(frame.scriptSegment, frame.directorsBrief?.emotionalArc || "Cinematic performance");
+      if (audioBase64) {
+        setScene(prev => ({
+          ...prev,
+          frames: prev.frames.map(f => f.id === frameId ? { ...f, audioData: audioBase64, isGeneratingAudio: false } : f)
+        }));
+        playAudio(audioBase64);
+      }
+    } catch (e) {
+      console.error("Audio synthesis failed", e);
+      setScene(prev => ({
+        ...prev,
+        frames: prev.frames.map(f => f.id === frameId ? { ...f, isGeneratingAudio: false } : f)
+      }));
+    }
+  };
+
+  const playAudio = async (base64: string) => {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    
+    const dataInt16 = new Int16Array(bytes.buffer);
+    const buffer = ctx.createBuffer(1, dataInt16.length, 24000);
+    const channelData = buffer.getChannelData(0);
+    for (let i = 0; i < dataInt16.length; i++) channelData[i] = dataInt16[i] / 32768.0;
+
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(ctx.destination);
+    source.start();
   };
 
   const selectedFrame = scene.frames.find(f => f.id === selectedFrameId);
@@ -116,6 +162,7 @@ const App: React.FC = () => {
           selectedFrameId={selectedFrameId}
           onSelectFrame={setSelectedFrameId}
           onRefine={handlePaintToEdit}
+          onPlayAudio={handleSynthesizeAudio}
         />
         
         <WorldBible 

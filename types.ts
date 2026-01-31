@@ -40,6 +40,8 @@ export interface Frame {
   scriptSegment?: string;
   directorsBrief?: DirectorsBrief;
   isGenerating?: boolean;
+  audioData?: string; // Base64 encoded PCM audio
+  isGeneratingAudio?: boolean;
 }
 
 export interface VisualManifest {
@@ -58,8 +60,6 @@ export interface SceneState {
 }
 
 // Global declaration for the aistudio API key selection tools
-// We extend the AIStudio interface which is already recognized by the environment.
-// This avoids redeclaring window.aistudio on the Window interface, which resolves modifier and type mismatch errors.
 declare global {
   interface AIStudio {
     hasSelectedApiKey: () => Promise<boolean>;
