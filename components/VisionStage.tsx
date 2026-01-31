@@ -1,82 +1,96 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Frame } from '../types';
 
 interface VisionStageProps {
   frames: Frame[];
+  selectedFrameId: string | null;
+  onSelectFrame: (id: string) => void;
+  onRefine: (id: string, prompt: string) => void;
 }
 
-const VisionStage: React.FC<VisionStageProps> = ({ frames }) => {
+const VisionStage: React.FC<VisionStageProps> = ({ frames, selectedFrameId, onSelectFrame, onRefine }) => {
+  const [instruction, setInstruction] = useState("");
+
   return (
-    <section className="flex-1 flex flex-col bg-background-dark relative">
-      <div className="p-4 flex justify-between items-center glass-panel z-10 sticky top-0">
+    <section className="flex-1 flex flex-col bg-background-dark overflow-hidden">
+      <div className="p-4 border-b border-white/5 flex justify-between items-center glass-panel z-20">
         <div className="flex items-center gap-4">
-          <h3 className="text-lg font-bold flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary">movie_filter</span>
-            The Vision
+          <h3 className="text-xs font-bold uppercase tracking-[0.2em] flex items-center gap-2">
+            <span className="material-symbols-outlined text-primary text-lg">movie_edit</span>
+            Storyboard Ribbon
           </h3>
-          <div className="flex bg-accent-dark rounded-md p-0.5">
-            <button className="px-3 py-1 text-xs font-bold bg-background-dark rounded shadow-sm">Sequence</button>
-            <button className="px-3 py-1 text-xs font-medium text-gray-500">Spatial</button>
-          </div>
+          <div className="h-4 w-px bg-white/10"></div>
+          <p className="text-[10px] text-gray-500 font-medium">Mapped to Sequence Arc</p>
         </div>
-        <div className="flex items-center gap-2">
-          <button className="flex items-center gap-1.5 bg-accent-dark hover:bg-white/10 px-3 py-1.5 rounded text-xs font-medium transition-all">
-            <span className="material-symbols-outlined text-sm">share</span> Share Preview
-          </button>
-          <button className="flex items-center gap-1.5 bg-accent-dark hover:bg-white/10 px-3 py-1.5 rounded text-xs font-medium transition-all">
-            <span className="material-symbols-outlined text-sm">download</span> Export
-          </button>
+        <div className="flex items-center gap-3">
+          <button className="text-[10px] font-bold text-gray-500 hover:text-white uppercase tracking-widest transition-all">Spatial View</button>
+          <button className="bg-primary text-black px-3 py-1 rounded text-[10px] font-bold uppercase tracking-widest">Master Preview</button>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-8 grid grid-cols-1 md:grid-cols-2 gap-8 content-start">
+      <div className="flex-1 overflow-x-auto overflow-y-hidden flex items-center px-12 gap-12 scroll-smooth">
         {frames.map((frame) => (
-          <div key={frame.id} className="group relative space-y-3">
-            <div className={`relative aspect-video rounded-xl overflow-hidden border-2 transition-all cursor-crosshair bg-accent-dark shadow-xl ${frame.isGenerating ? 'border-primary animate-pulse' : 'border-transparent hover:border-primary/50'}`}>
-              <img 
-                src={frame.image} 
-                alt={frame.prompt}
-                className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${frame.isGenerating ? 'opacity-30' : 'opacity-100'}`}
-              />
+          <div 
+            key={frame.id} 
+            className={`flex-shrink-0 group relative transition-all duration-500 ${selectedFrameId === frame.id ? 'w-[640px] z-10' : 'w-80 grayscale-[0.8] hover:grayscale-0 opacity-60 hover:opacity-100'}`}
+            onClick={() => onSelectFrame(frame.id)}
+          >
+            <div className={`relative aspect-video rounded-xl overflow-hidden border-2 transition-all cursor-pointer shadow-2xl ${selectedFrameId === frame.id ? 'border-primary ring-8 ring-primary/5' : 'border-white/5'}`}>
+              <img src={frame.image} alt={frame.prompt} className={`absolute inset-0 w-full h-full object-cover transition-transform duration-1000 ${selectedFrameId === frame.id ? 'scale-100' : 'scale-110'}`} />
               
               {frame.isGenerating && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="bg-black/60 backdrop-blur-md px-4 py-2 rounded-lg flex items-center gap-3">
-                    <span className="material-symbols-outlined animate-spin text-primary">autorenew</span>
-                    <span className="text-xs font-bold text-white uppercase tracking-widest">Painting Frame...</span>
+                <div className="absolute inset-0 bg-black/60 backdrop-blur-md flex flex-col items-center justify-center">
+                  <div className="size-8 border-2 border-primary border-t-transparent rounded-full animate-spin mb-3"></div>
+                  <span className="text-[9px] font-bold text-primary uppercase tracking-[0.2em]">Processing Nano Banana...</span>
+                </div>
+              )}
+
+              {selectedFrameId === frame.id && !frame.isGenerating && (
+                <div className="absolute bottom-6 left-6 right-6 opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0">
+                  <div className="flex items-center gap-2 bg-black/80 backdrop-blur-xl p-2 rounded-xl border border-white/10 shadow-2xl">
+                    <span className="material-symbols-outlined text-primary text-sm ml-2">draw</span>
+                    <input 
+                      autoFocus
+                      className="flex-1 bg-transparent border-none focus:ring-0 text-[11px] placeholder:text-gray-500 text-white" 
+                      placeholder="Localized Paint-to-Edit: 'Make it rain heavier', 'Close up on hand'..." 
+                      value={instruction}
+                      onChange={(e) => setInstruction(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          onRefine(frame.id, instruction);
+                          setInstruction("");
+                        }
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); onRefine(frame.id, instruction); setInstruction(""); }}
+                      className="bg-primary text-black px-3 py-1.5 rounded-lg text-[9px] font-black uppercase"
+                    >
+                      APPLY
+                    </button>
                   </div>
                 </div>
               )}
 
-              {/* Spatial Control Overlays */}
-              {!frame.isGenerating && (
-                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <div className="border border-primary/50 w-3/4 h-3/4 flex items-center justify-center pointer-events-none">
-                    <span className="bg-primary/20 backdrop-blur-md px-2 py-1 text-[10px] text-primary border border-primary/30 rounded">CINEMATIC SHOT</span>
-                  </div>
-                </div>
-              )}
-
-              <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-md px-2 py-1 rounded text-[10px] font-bold tracking-widest uppercase z-10">
-                {frame.title}
+              <div className="absolute top-4 left-4 flex gap-2">
+                <div className="bg-black/60 backdrop-blur-md px-2 py-0.5 rounded text-[9px] font-bold border border-white/10">{frame.title}</div>
+                <div className="bg-primary text-black px-2 py-0.5 rounded text-[9px] font-bold uppercase">{frame.timeRange}</div>
               </div>
             </div>
             
-            <div className="flex justify-between items-center px-1">
-              <span className="text-xs text-gray-400">{frame.timeRange}</span>
-              <div className="flex gap-2">
-                <span className="material-symbols-outlined text-sm text-gray-500 hover:text-primary cursor-pointer transition-colors">refresh</span>
-                <span className="material-symbols-outlined text-sm text-gray-500 hover:text-primary cursor-pointer transition-colors">tune</span>
-              </div>
+            <div className={`mt-4 px-1 transition-all ${selectedFrameId === frame.id ? 'opacity-100' : 'opacity-0'}`}>
+              <p className="text-[11px] text-gray-400 font-medium italic border-l-2 border-primary/40 pl-3 py-1">
+                "{frame.scriptSegment}"
+              </p>
             </div>
           </div>
         ))}
 
-        {/* Add Frame Slot */}
-        <div className="aspect-video rounded-xl border-2 border-dashed border-accent-dark flex flex-col items-center justify-center hover:border-primary/40 hover:bg-primary/5 transition-all cursor-pointer group">
-          <span className="material-symbols-outlined text-3xl text-gray-600 mb-2 group-hover:text-primary transition-colors">add_photo_alternate</span>
-          <span className="text-xs text-gray-500 font-medium group-hover:text-gray-300">Add Frame</span>
+        <div className="flex-shrink-0 w-80 aspect-video rounded-xl border-2 border-dashed border-white/5 flex flex-col items-center justify-center hover:bg-white/5 transition-all cursor-pointer group">
+          <span className="material-symbols-outlined text-gray-600 group-hover:text-primary transition-colors text-3xl">add_photo_alternate</span>
+          <span className="text-[9px] font-bold text-gray-600 mt-2 uppercase tracking-widest">Append Sequence</span>
         </div>
       </div>
     </section>

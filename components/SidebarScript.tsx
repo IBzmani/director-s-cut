@@ -1,51 +1,77 @@
 
-import React from 'react';
+import React, { useRef } from 'react';
 
 interface SidebarScriptProps {
   script: string;
   onScriptChange: (val: string) => void;
   location: string;
   title: string;
+  highlightText?: string;
+  onUpload: (text: string) => void;
 }
 
-const SidebarScript: React.FC<SidebarScriptProps> = ({ script, onScriptChange, location, title }) => {
+const SidebarScript: React.FC<SidebarScriptProps> = ({ script, onScriptChange, location, title, highlightText, onUpload }) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => onUpload(e.target?.result as string);
+      reader.readAsText(file);
+    }
+  };
+
+  const renderScript = () => {
+    if (!highlightText) return script;
+    const parts = script.split(new RegExp(`(${highlightText})`, 'gi'));
+    return parts.map((part, i) => 
+      part.toLowerCase() === highlightText.toLowerCase() ? 
+      <span key={i} className="bg-primary/20 text-primary border-b border-primary/50 font-semibold px-0.5">{part}</span> : 
+      part
+    );
+  };
+
   return (
     <aside className="w-80 border-r border-accent-dark bg-panel-dark flex flex-col">
-      <div className="p-4 border-b border-accent-dark flex justify-between items-center">
+      <div className="p-4 border-b border-accent-dark flex justify-between items-center bg-black/10">
         <div className="flex items-center gap-2">
           <span className="material-symbols-outlined text-primary text-lg">description</span>
-          <span className="font-bold text-sm uppercase tracking-widest text-gray-400">The Script</span>
+          <span className="font-bold text-xs uppercase tracking-[0.2em] text-gray-500">Manuscript</span>
         </div>
-        <span className="text-[10px] bg-accent-dark px-2 py-0.5 rounded text-gray-300">Markdown</span>
+        <button 
+          onClick={() => fileInputRef.current?.click()}
+          className="flex items-center gap-1.5 px-2 py-1 bg-white/5 hover:bg-white/10 rounded text-[10px] font-bold text-gray-400 transition-all border border-white/5"
+        >
+          <span className="material-symbols-outlined text-xs">upload_file</span> IMPORT
+        </button>
+        <input type="file" ref={fileInputRef} className="hidden" accept=".txt,.md" onChange={handleFileChange} />
       </div>
+      
       <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-4">
-        <h1 className="text-white text-xl font-bold">{title}</h1>
-        <p className="text-gray-500 uppercase text-xs tracking-tighter">{location}</p>
+        <h1 className="text-white text-lg font-bold leading-tight">{title}</h1>
+        <p className="text-gray-500 uppercase text-[9px] tracking-widest border-b border-white/5 pb-2">{location}</p>
         
-        <textarea 
-          className="flex-1 bg-transparent border-none focus:ring-0 text-gray-300 text-sm leading-relaxed resize-none p-0"
-          value={script}
-          onChange={(e) => onScriptChange(e.target.value)}
-          placeholder="Enter your script here..."
-        />
-
-        <div className="bg-primary/5 border-l-2 border-primary p-3 rounded-r-lg">
-          <p className="text-primary font-bold text-xs mb-1">ACTION</p>
-          <p className="italic text-xs text-gray-400">
-            AI is analyzing the script context to suggest visual frames.
-          </p>
+        <div className="relative flex-1">
+          <textarea 
+            className="absolute inset-0 w-full h-full bg-transparent border-none focus:ring-0 text-transparent caret-white text-sm leading-relaxed resize-none p-0 z-10"
+            value={script}
+            onChange={(e) => onScriptChange(e.target.value)}
+          />
+          <div className="text-gray-400 text-sm leading-relaxed whitespace-pre-wrap select-none z-0">
+            {renderScript()}
+          </div>
         </div>
       </div>
       
-      {/* Waveform Visualizer */}
       <div className="p-4 border-t border-accent-dark bg-black/20">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-[10px] text-gray-500 uppercase tracking-widest">Voice Direction</span>
-          <span className="text-[10px] text-primary">00:12.4</span>
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Atmosphere Scan</span>
+          <div className="size-1.5 rounded-full bg-primary animate-pulse"></div>
         </div>
-        <div className="flex items-end gap-[2px] h-8 w-full justify-center">
-          {[2, 4, 6, 3, 7, 5, 8, 4, 6, 2, 4, 6, 3, 5, 2, 6, 4, 3].map((h, i) => (
-            <div key={i} className="waveform-bar" style={{ height: `${h * 4}px` }}></div>
+        <div className="flex items-end gap-[3px] h-10 w-full">
+          {[2, 6, 8, 4, 10, 5, 12, 6, 8, 4, 3, 7, 5, 9, 2, 6, 4, 8, 3, 5, 7, 9, 4, 2].map((h, i) => (
+            <div key={i} className="flex-1 bg-primary/40 rounded-t-sm" style={{ height: `${h * 2.5}px` }}></div>
           ))}
         </div>
       </div>

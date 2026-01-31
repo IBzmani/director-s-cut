@@ -1,104 +1,99 @@
 
 import React from 'react';
-import { AreaChart, Area, ResponsiveContainer, XAxis, YAxis } from 'recharts';
+import { AreaChart, Area, ResponsiveContainer } from 'recharts';
+import { DirectorsBrief } from '../types';
 
 interface TimelineFooterProps {
-  sentimentData: { time: string; value: number }[];
+  sentimentData: { time: string; value: number; suspense: number }[];
+  currentBrief?: DirectorsBrief;
 }
 
-const TimelineFooter: React.FC<TimelineFooterProps> = ({ sentimentData }) => {
+const TimelineFooter: React.FC<TimelineFooterProps> = ({ sentimentData, currentBrief }) => {
   return (
-    <footer className="h-48 border-t border-accent-dark bg-panel-dark flex flex-col z-10">
-      <div className="px-6 py-2 border-b border-accent-dark flex justify-between items-center bg-black/20">
+    <footer className="h-56 border-t border-accent-dark bg-panel-dark flex flex-col z-30">
+      <div className="px-6 py-2 border-b border-white/5 flex justify-between items-center bg-black/20">
         <div className="flex items-center gap-6">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Director’s Brief</span>
-          <div className="flex gap-4">
-            <div className="flex items-center gap-2">
-              <div className="size-1.5 rounded-full bg-primary"></div>
-              <span className="text-[10px] text-gray-400">Suspense</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="size-1.5 rounded-full bg-blue-500"></div>
-              <span className="text-[10px] text-gray-400">Atmosphere</span>
-            </div>
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-primary text-sm">psychology_alt</span>
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400">Director’s Brief Panel</span>
           </div>
+          {currentBrief && (
+            <div className="flex gap-4">
+              <span className="text-[9px] text-primary/70 font-bold uppercase border-l border-white/10 pl-4">Frame Reasoning: Active</span>
+            </div>
+          )}
         </div>
-        <div className="flex gap-4 text-gray-400">
-          <span className="material-symbols-outlined text-sm cursor-pointer hover:text-white transition-colors">zoom_in</span>
-          <span className="material-symbols-outlined text-sm cursor-pointer hover:text-white transition-colors">zoom_out</span>
-        </div>
+        <div className="text-[9px] text-gray-500 font-mono tracking-widest">TIMECODE: 00:12:04:15</div>
       </div>
       
-      <div className="flex-1 flex overflow-hidden">
-        {/* Labels Column */}
-        <div className="w-32 border-r border-accent-dark flex flex-col justify-around py-4 pl-6 text-[10px] text-gray-500 font-bold uppercase">
-          <span className="flex items-center gap-2">Sentiment</span>
-          <span className="flex items-center gap-2">Lighting</span>
-          <span className="flex items-center gap-2">Cues</span>
+      <div className="flex-1 flex">
+        {/* Reasoning Display */}
+        <div className="w-80 border-r border-white/5 p-4 flex flex-col justify-between bg-black/10">
+          {currentBrief ? (
+            <div className="space-y-3">
+              <div className="flex flex-col">
+                <span className="text-[8px] text-gray-500 font-black uppercase mb-1">Emotional Arc</span>
+                <p className="text-[10px] text-white leading-tight font-medium">{currentBrief.emotionalArc}</p>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[8px] text-gray-500 font-black uppercase mb-1">Lighting Theory</span>
+                <p className="text-[10px] text-primary/80 leading-tight font-medium">{currentBrief.lightingScheme}</p>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[8px] text-gray-500 font-black uppercase mb-1">Camera Logic</span>
+                <p className="text-[10px] text-gray-300 leading-tight font-medium italic">"{currentBrief.cameraLogic}"</p>
+              </div>
+            </div>
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center opacity-30">
+              <span className="material-symbols-outlined text-3xl mb-2">analytics</span>
+              <p className="text-[9px] font-bold uppercase tracking-widest">Select Frame for Brief</p>
+            </div>
+          )}
         </div>
-        
-        {/* Timeline Grid */}
-        <div className="flex-1 relative overflow-x-auto">
-          <div className="h-full min-w-[1200px] flex flex-col relative">
+
+        {/* Graph Area */}
+        <div className="flex-1 flex flex-col relative">
+          <div className="flex-1 relative">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={sentimentData}>
+                <defs>
+                  <linearGradient id="colorVal" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#ecb613" stopOpacity={0.2}/>
+                    <stop offset="95%" stopColor="#ecb613" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <Area type="monotone" dataKey="value" stroke="#ecb613" strokeWidth={2} fillOpacity={1} fill="url(#colorVal)" />
+                <Area type="monotone" dataKey="suspense" stroke="#3b82f6" strokeWidth={1} fillOpacity={0} strokeDasharray="3 3" />
+              </AreaChart>
+            </ResponsiveContainer>
             
-            {/* Sentiment Layer (Recharts) */}
-            <div className="flex-1 border-b border-white/5 relative">
-              <div className="absolute inset-0 pt-2">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={sentimentData}>
-                    <defs>
-                      <linearGradient id="colorVal" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#ecb613" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#ecb613" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <Area 
-                      type="monotone" 
-                      dataKey="value" 
-                      stroke="#ecb613" 
-                      strokeWidth={2}
-                      fillOpacity={1} 
-                      fill="url(#colorVal)" 
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
+            {/* Markers */}
+            <div className="absolute top-0 bottom-0 left-1/4 w-px bg-white/10"></div>
+            <div className="absolute top-0 bottom-0 left-2/4 w-px bg-white/10"></div>
+            <div className="absolute top-0 bottom-0 left-3/4 w-px bg-white/10"></div>
+          </div>
 
-            {/* Lighting Layer */}
-            <div className="flex-1 border-b border-white/5 flex items-center px-4 gap-8">
-              <div className="h-5 w-64 bg-gradient-to-r from-[#0a0f2c] via-[#1a1a1a] to-[#0a0f2c] rounded-full border border-white/10 flex items-center justify-center text-[8px] text-gray-400 font-bold uppercase tracking-widest shadow-inner">
-                LOW KEY / NEON COOL
-              </div>
-              <div className="h-5 w-40 bg-gradient-to-r from-red-900/60 to-red-800/60 rounded-full border border-red-500/30 flex items-center justify-center text-[8px] text-red-200 font-bold uppercase tracking-widest shadow-[0_0_10px_rgba(239,68,68,0.2)]">
-                ALERT STROBE
-              </div>
+          <div className="h-12 border-t border-white/5 flex items-center px-6 gap-12 bg-black/20">
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] text-gray-500 font-black uppercase tracking-widest">Key Cues</span>
+              <div className="h-4 w-px bg-white/10"></div>
             </div>
+            {['Sound: Distant Rain', 'VFX: Hologram Flicker', 'Score: Industrial Low'].map((cue, i) => (
+              <div key={i} className="flex items-center gap-2 group cursor-pointer hover:text-primary transition-all">
+                <div className="size-2 rounded-full border border-primary/50 group-hover:bg-primary shadow-lg transition-all"></div>
+                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{cue}</span>
+              </div>
+            ))}
+          </div>
 
-            {/* Cues Layer */}
-            <div className="flex-1 flex items-center px-4 gap-20">
-              <div className="size-5 rounded-full bg-accent-dark border border-primary flex items-center justify-center shadow-[0_0_10px_rgba(236,182,19,0.2)] cursor-pointer hover:scale-110 transition-transform">
-                <span className="material-symbols-outlined text-[10px] text-primary">notifications_active</span>
-              </div>
-              <div className="size-5 rounded-full bg-accent-dark border border-blue-400 flex items-center justify-center shadow-[0_0_10px_rgba(96,165,250,0.2)] cursor-pointer hover:scale-110 transition-transform">
-                <span className="material-symbols-outlined text-[10px] text-blue-400">music_note</span>
-              </div>
-              <div className="size-5 rounded-full bg-accent-dark border border-purple-400 flex items-center justify-center shadow-[0_0_10px_rgba(192,132,252,0.2)] cursor-pointer hover:scale-110 transition-transform">
-                <span className="material-symbols-outlined text-[10px] text-purple-400">videocam</span>
-              </div>
-            </div>
+          <div className="h-4 flex justify-between px-6 text-[8px] text-gray-600 bg-background-dark font-mono border-t border-white/5">
+            <span>00:00</span><span>00:10</span><span>00:20</span><span>00:30</span><span>00:40</span><span>00:50</span><span>01:00</span>
+          </div>
 
-            {/* Time Markers */}
-            <div className="h-4 border-t border-accent-dark flex justify-between px-4 text-[8px] text-gray-600 bg-background-dark/50">
-              {['0:00s', '0:10s', '0:20s', '0:30s', '0:40s', '0:50s', '1:00s', '1:10s', '1:20s'].map(time => (
-                <span key={time}>{time}</span>
-              ))}
-            </div>
-
-            {/* Playhead */}
-            <div className="absolute top-0 bottom-0 left-[300px] w-px bg-primary z-20">
-              <div className="absolute -top-1 -left-1.5 size-3 bg-primary rounded-sm rotate-45 shadow-[0_0_10px_rgba(236,182,19,0.5)]"></div>
-            </div>
+          {/* Scrubber */}
+          <div className="absolute top-0 bottom-0 left-[200px] w-px bg-primary z-20 pointer-events-none shadow-[0_0_15px_rgba(236,182,19,0.5)]">
+            <div className="absolute -top-1 -left-1.5 size-3 bg-primary rounded-sm rotate-45 shadow-xl"></div>
           </div>
         </div>
       </div>
