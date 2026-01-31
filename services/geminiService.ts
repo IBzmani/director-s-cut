@@ -1,8 +1,35 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 
-// Guidelines: Always create a new GoogleGenAI instance right before making an API call 
-// to ensure it always uses the most up-to-date API key.
+/**
+ * Converts a remote image URL or a data URL to a base64 string that the Gemini API can process.
+ * This fixes the 400 error caused by sending undefined data when baseImage is a standard URL.
+ */
+async function toBase64(url: string): Promise<{ data: string, mimeType: string }> {
+  if (url.startsWith('data:')) {
+    const [header, data] = url.split(',');
+    const mimeType = header.split(':')[1].split(';')[0];
+    return { data, mimeType };
+  }
+
+  try {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = (reader.result as string).split(',')[1];
+        resolve({ data: base64String, mimeType: blob.type });
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    console.error("Failed to convert image to base64:", error);
+    // Fallback/Default for placeholders if fetch fails (e.g. CORS)
+    return { data: "", mimeType: "image/png" };
+  }
+}
 
 export const analyzeManuscriptDeep = async (manuscript: string) => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -100,18 +127,20 @@ export const generateSceneWithBrief = async (script: string) => {
 export const generateNanoBananaImage = async (prompt: string, baseImage?: string) => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
-  // Using gemini-2.5-flash-image as it is a "nano banana" model that doesn't strictly 
-  // require the mandatory billing selector for all users like gemini-3-pro-image-preview does.
   const parts: any[] = [{ text: `Cinematic movie storyboard, ultra-realistic production still. ${prompt}` }];
 
   if (baseImage) {
-    parts.unshift({
-      inlineData: {
-        mimeType: 'image/png',
-        data: baseImage.split(',')[1]
-      }
-    });
-    parts[1].text = `Modify this frame following these specific directorial notes: ${prompt}. Keep the scene structure and character identity consistent with the original.`;
+    const imageData = await toBase64(baseImage);
+    if (imageData.data) {
+      parts.unshift({
+        inlineData: {
+          mimeType: imageData.mimeType,
+          data: imageData.data
+        }
+      });
+      // Adjust the text prompt when an image is provided to guide the edit
+      parts[1].text = `Directorial adjustment for this frame: ${prompt}. Maintain cinematic continuity, character likeness, and environment structure.`;
+    }
   }
 
   const response = await ai.models.generateContent({
