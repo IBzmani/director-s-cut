@@ -1,34 +1,79 @@
 
 import React, { useState } from 'react';
 import { INITIAL_SCENE } from './constants';
-import { SceneState, Frame } from './types';
+import { SceneState, Character, Environment } from './types';
 import Header from './components/Header';
 import SidebarScript from './components/SidebarScript';
 import VisionStage from './components/VisionStage';
 import WorldBible from './components/WorldBible';
 import TimelineFooter from './components/TimelineFooter';
-import { analyzeManuscriptDeep, generateSceneWithBrief, generateNanoBananaImage, generateEmotionalAudio } from './services/geminiService';
+import { analyzeManuscriptDeep, generateSceneWithBrief, generateNanoBananaImage, generateEmotionalAudio, generateBibleAsset } from './services/geminiService';
 
 const App: React.FC = () => {
   const [scene, setScene] = useState<SceneState>(INITIAL_SCENE);
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedFrameId, setSelectedFrameId] = useState<string | null>(scene.frames[0]?.id || null);
 
+  const addCharacter = async (name: string, description: string) => {
+    const id = `c-${Date.now()}`;
+    const newChar: Character = { id, name, role: "Principal", description, image: 'https://placehold.co/400x400/1a1a1a/ecb613?text=Generating+Plate...' };
+    
+    setScene(prev => ({
+      ...prev,
+      manifest: { ...prev.manifest, characters: [...prev.manifest.characters, newChar] }
+    }));
+
+    const img = await generateBibleAsset(name, description, 'character');
+    if (img) {
+      setScene(prev => ({
+        ...prev,
+        manifest: { 
+          ...prev.manifest, 
+          characters: prev.manifest.characters.map(c => c.id === id ? { ...c, image: img } : c) 
+        }
+      }));
+    }
+  };
+
+  const addEnvironment = async (name: string, description: string) => {
+    const id = `e-${Date.now()}`;
+    const newEnv: Environment = { id, name, mood: "Concept", colors: ['#555'], image: 'https://placehold.co/800x450/1a1a1a/ecb613?text=Generating+World...' };
+    
+    setScene(prev => ({
+      ...prev,
+      manifest: { ...prev.manifest, environments: [...prev.manifest.environments, newEnv] }
+    }));
+
+    const img = await generateBibleAsset(name, description, 'environment');
+    if (img) {
+      setScene(prev => ({
+        ...prev,
+        manifest: { 
+          ...prev.manifest, 
+          environments: prev.manifest.environments.map(e => e.id === id ? { ...e, image: img } : e) 
+        }
+      }));
+    }
+  };
+
   const handleManuscriptUpload = async (text: string) => {
     setIsGenerating(true);
     try {
       const analysis = await analyzeManuscriptDeep(text);
-      setScene(prev => ({
-        ...prev,
-        script: text,
-        manifest: {
-          characters: (analysis.characters || []).map((c: any, i: number) => ({ ...c, id: `c-${i}`, image: `https://picsum.photos/id/${100 + i}/200/200` })),
-          environments: (analysis.environments || []).map((e: any, i: number) => ({ ...e, id: `e-${i}`, image: `https://picsum.photos/id/${200 + i}/400/225` })),
-          motifs: (analysis.motifs || []).map((m: any, i: number) => ({ ...m, id: `m-${i}` }))
-        }
-      }));
-    } catch (e) {
-      console.error("Analysis failed", e);
+      const characters = (analysis.characters || []).map((c: any, i: number) => ({ ...c, id: `c-auto-${i}`, image: 'https://placehold.co/400x400?text=Wait...' }));
+      const environments = (analysis.environments || []).map((e: any, i: number) => ({ ...e, id: `e-auto-${i}`, image: 'https://placehold.co/800x450?text=Wait...' }));
+      
+      setScene(prev => ({ ...prev, script: text, manifest: { ...prev.manifest, characters, environments } }));
+
+      characters.forEach(async (char: any) => {
+        const img = await generateBibleAsset(char.name, char.description, 'character');
+        if (img) setScene(prev => ({ ...prev, manifest: { ...prev.manifest, characters: prev.manifest.characters.map(c => c.id === char.id ? { ...c, image: img } : c) } }));
+      });
+
+      environments.forEach(async (env: any) => {
+        const img = await generateBibleAsset(env.name, env.mood, 'environment');
+        if (img) setScene(prev => ({ ...prev, manifest: { ...prev.manifest, environments: prev.manifest.environments.map(e => e.id === env.id ? { ...e, image: img } : e) } }));
+      });
     } finally {
       setIsGenerating(false);
     }
@@ -38,33 +83,36 @@ const App: React.FC = () => {
     if (isGenerating) return;
     setIsGenerating(true);
     try {
-      // Integration: Passing manifest to the suggester for consistency
       const data = await generateSceneWithBrief(scene.script, scene.manifest);
-      const newFrames: Frame[] = (data.frames || []).map((f: any, i: number) => ({
-        id: `frame-${i}-${Date.now()}`,
-        title: f.title || `Frame ${i + 1}`,
-        timeRange: `00:0${i*5}-00:0${(i+1)*5}`,
-        prompt: f.prompt,
-        scriptSegment: f.scriptSegment,
-        directorsBrief: f.directorsBrief,
-        image: 'https://placehold.co/1280x720/1a1a1a/ecb613?text=Painting+Sequence...',
+      const newFrames = data.frames.map((f: any, i: number) => ({
+        ...f,
+        id: `f-${i}-${Date.now()}`,
+        timeRange: `00:0${i*5} - 00:0${(i+1)*5}`,
+        image: 'https://placehold.co/1280x720/1a1a1a/ecb613?text=Composing+Shot...',
         isGenerating: true
       }));
 
       setScene(prev => ({ ...prev, frames: newFrames }));
       if (newFrames.length > 0) setSelectedFrameId(newFrames[0].id);
 
-      for (let i = 0; i < newFrames.length; i++) {
-        const url = await generateNanoBananaImage(newFrames[i].prompt, scene.manifest);
+      for (let frame of newFrames) {
+        const url = await generateNanoBananaImage(
+          frame.prompt, 
+          scene.manifest, 
+          { 
+            charId: frame.characterId, 
+            envId: frame.environmentId, 
+            shotType: frame.shotType,
+            emotion: frame.directorsBrief?.emotionalArc 
+          }
+        );
         if (url) {
           setScene(prev => ({
             ...prev,
-            frames: prev.frames.map(frame => frame.id === newFrames[i].id ? { ...frame, image: url, isGenerating: false } : frame)
+            frames: prev.frames.map(f => f.id === frame.id ? { ...f, image: url, isGenerating: false } : f)
           }));
         }
       }
-    } catch (e) {
-      console.error("Storyboard generation failed", e);
     } finally {
       setIsGenerating(false);
     }
@@ -73,54 +121,30 @@ const App: React.FC = () => {
   const handlePaintToEdit = async (frameId: string, instruction: string, coord?: { x: number, y: number }) => {
     const target = scene.frames.find(f => f.id === frameId);
     if (!target) return;
-
-    setScene(prev => ({
-      ...prev,
-      frames: prev.frames.map(f => f.id === frameId ? { ...f, isGenerating: true } : f)
-    }));
-
-    try {
-      // Spatial Prompting: coordinates integrated
-      const editedUrl = await generateNanoBananaImage(instruction, scene.manifest, target.image, coord);
-      if (editedUrl) {
-        setScene(prev => ({
-          ...prev,
-          frames: prev.frames.map(f => f.id === frameId ? { ...f, image: editedUrl, isGenerating: false, prompt: instruction } : f)
-        }));
-      }
-    } catch (e) {
-      console.error("Edit failed", e);
-      setScene(prev => ({
-        ...prev,
-        frames: prev.frames.map(f => f.id === frameId ? { ...f, isGenerating: false } : f)
-      }));
-    }
+    setScene(prev => ({ ...prev, frames: prev.frames.map(f => f.id === frameId ? { ...f, isGenerating: true } : f) }));
+    const editedUrl = await generateNanoBananaImage(
+      instruction, 
+      scene.manifest, 
+      { 
+        charId: (target as any).characterId, 
+        envId: (target as any).environmentId,
+        shotType: (target as any).shotType,
+        emotion: (target as any).directorsBrief?.emotionalArc
+      }, 
+      target.image, 
+      coord
+    );
+    if (editedUrl) setScene(prev => ({ ...prev, frames: prev.frames.map(f => f.id === frameId ? { ...f, image: editedUrl, isGenerating: false } : f) }));
   };
 
   const handleSynthesizeAudio = async (frameId: string) => {
     const frame = scene.frames.find(f => f.id === frameId);
-    if (!frame || !frame.scriptSegment) return;
-
-    setScene(prev => ({
-      ...prev,
-      frames: prev.frames.map(f => f.id === frameId ? { ...f, isGeneratingAudio: true } : f)
-    }));
-
-    try {
-      const audioBase64 = await generateEmotionalAudio(frame.scriptSegment, frame.directorsBrief?.emotionalArc || "Cinematic performance");
-      if (audioBase64) {
-        setScene(prev => ({
-          ...prev,
-          frames: prev.frames.map(f => f.id === frameId ? { ...f, audioData: audioBase64, isGeneratingAudio: false } : f)
-        }));
-        playAudio(audioBase64);
-      }
-    } catch (e) {
-      console.error("Audio synthesis failed", e);
-      setScene(prev => ({
-        ...prev,
-        frames: prev.frames.map(f => f.id === frameId ? { ...f, isGeneratingAudio: false } : f)
-      }));
+    if (!frame?.scriptSegment) return;
+    setScene(prev => ({ ...prev, frames: prev.frames.map(f => f.id === frameId ? { ...f, isGeneratingAudio: true } : f) }));
+    const audio = await generateEmotionalAudio(frame.scriptSegment, frame.directorsBrief?.emotionalArc || "Cinematic Performance");
+    if (audio) {
+      setScene(prev => ({ ...prev, frames: prev.frames.map(f => f.id === frameId ? { ...f, audioData: audio, isGeneratingAudio: false } : f) }));
+      playAudio(audio);
     }
   };
 
@@ -129,12 +153,10 @@ const App: React.FC = () => {
     const binary = atob(base64);
     const bytes = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-    
     const dataInt16 = new Int16Array(bytes.buffer);
     const buffer = ctx.createBuffer(1, dataInt16.length, 24000);
     const channelData = buffer.getChannelData(0);
     for (let i = 0; i < dataInt16.length; i++) channelData[i] = dataInt16[i] / 32768.0;
-
     const source = ctx.createBufferSource();
     source.buffer = buffer;
     source.connect(ctx.destination);
@@ -146,34 +168,12 @@ const App: React.FC = () => {
   return (
     <div className="flex flex-col h-screen bg-background-dark text-white font-display overflow-hidden">
       <Header onGenerate={handleGenerateStoryboard} isGenerating={isGenerating} />
-      
       <main className="flex flex-1 overflow-hidden">
-        <SidebarScript 
-          script={scene.script} 
-          onScriptChange={(s) => setScene(prev => ({ ...prev, script: s }))} 
-          location={scene.location}
-          title={scene.title}
-          highlightText={selectedFrame?.scriptSegment}
-          onUpload={handleManuscriptUpload}
-        />
-        
-        <VisionStage 
-          frames={scene.frames} 
-          selectedFrameId={selectedFrameId}
-          onSelectFrame={setSelectedFrameId}
-          onRefine={handlePaintToEdit}
-          onPlayAudio={handleSynthesizeAudio}
-        />
-        
-        <WorldBible 
-          manifest={scene.manifest}
-        />
+        <SidebarScript script={scene.script} onScriptChange={(s) => setScene(prev => ({ ...prev, script: s }))} location={scene.location} title={scene.title} highlightText={selectedFrame?.scriptSegment} onUpload={handleManuscriptUpload} />
+        <VisionStage frames={scene.frames} selectedFrameId={selectedFrameId} onSelectFrame={setSelectedFrameId} onRefine={handlePaintToEdit} onPlayAudio={handleSynthesizeAudio} />
+        <WorldBible manifest={scene.manifest} onAddChar={addCharacter} onAddEnv={addEnvironment} />
       </main>
-
-      <TimelineFooter 
-        sentimentData={scene.sentimentData} 
-        currentBrief={selectedFrame?.directorsBrief}
-      />
+      <TimelineFooter sentimentData={scene.sentimentData} currentBrief={selectedFrame?.directorsBrief} shotType={(selectedFrame as any)?.shotType} />
     </div>
   );
 };

@@ -1,50 +1,64 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { VisualManifest } from '../types';
 
 interface WorldBibleProps {
   manifest: VisualManifest;
+  onAddChar: (name: string, desc: string) => void;
+  onAddEnv: (name: string, desc: string) => void;
 }
 
-const WorldBible: React.FC<WorldBibleProps> = ({ manifest }) => {
+const WorldBible: React.FC<WorldBibleProps> = ({ manifest, onAddChar, onAddEnv }) => {
+  const [showAddChar, setShowAddChar] = useState(false);
+  const [showAddEnv, setShowAddEnv] = useState(false);
+  const [name, setName] = useState('');
+  const [desc, setDesc] = useState('');
+
   return (
-    <aside className="w-72 border-l border-accent-dark bg-panel-dark flex flex-col">
+    <aside className="w-80 border-l border-accent-dark bg-panel-dark flex flex-col">
       <div className="p-4 border-b border-accent-dark bg-black/10 flex justify-between items-center">
         <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-primary text-lg">auto_awesome_motion</span>
-          <span className="font-bold text-xs uppercase tracking-[0.2em] text-gray-500">Visual Manifest</span>
+          <span className="material-symbols-outlined text-primary text-lg">menu_book</span>
+          <span className="font-bold text-[10px] uppercase tracking-[0.2em] text-gray-500">Visual Source of Truth</span>
         </div>
       </div>
       
-      <div className="flex-1 overflow-y-auto p-4 space-y-8">
+      <div className="flex-1 overflow-y-auto p-4 space-y-10 custom-scrollbar pb-20">
         {/* Characters */}
         <section>
-          <h4 className="text-[10px] text-gray-600 font-bold uppercase tracking-widest mb-4 flex items-center justify-between">
-            CAST & PORTRAITS
-            <span className="text-[8px] bg-white/5 px-1.5 py-0.5 rounded">AUTO-SCAN</span>
-          </h4>
-          <div className="grid gap-3">
-            {manifest.characters.map(char => (
-              <div key={char.id} className="flex items-center gap-3 p-2 bg-white/5 rounded-lg border border-white/5 group hover:border-primary/30 cursor-pointer transition-all">
-                <img src={char.image} className="size-10 rounded object-cover shadow-lg" alt="" />
-                <div className="overflow-hidden">
-                  <p className="text-[11px] font-bold text-white truncate">{char.name}</p>
-                  <p className="text-[9px] text-gray-500 truncate uppercase tracking-tighter">{char.role}</p>
-                </div>
-              </div>
-            ))}
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="text-[9px] text-gray-600 font-black uppercase tracking-[0.2em]">Actor Portfolio</h4>
+            <button 
+              onClick={() => setShowAddChar(!showAddChar)}
+              className="size-5 rounded bg-primary/10 flex items-center justify-center text-primary hover:bg-primary/20 transition-all"
+            >
+              <span className="material-symbols-outlined text-sm">{showAddChar ? 'close' : 'add'}</span>
+            </button>
           </div>
-        </section>
 
-        {/* Motifs */}
-        <section>
-          <h4 className="text-[10px] text-gray-600 font-bold uppercase tracking-widest mb-4">KEY MOTIFS</h4>
-          <div className="grid grid-cols-2 gap-2">
-            {manifest.motifs.map(motif => (
-              <div key={motif.id} className="p-3 bg-primary/5 rounded-xl border border-primary/10 flex flex-col items-center text-center group hover:bg-primary/10 transition-all cursor-pointer">
-                <span className="material-symbols-outlined text-primary mb-2 group-hover:scale-110 transition-transform">{motif.icon || 'star'}</span>
-                <p className="text-[10px] font-black text-white uppercase">{motif.label}</p>
-                <p className="text-[8px] text-gray-500 mt-1 leading-tight">{motif.description.substring(0, 30)}...</p>
+          {showAddChar && (
+            <div className="mb-6 p-3 bg-white/5 rounded-xl border border-white/10 space-y-3">
+              <input className="w-full bg-black/40 border-white/10 rounded text-xs text-white" placeholder="Name" value={name} onChange={e => setName(e.target.value)} />
+              <textarea className="w-full bg-black/40 border-white/10 rounded text-xs text-white h-16" placeholder="Description" value={desc} onChange={e => setDesc(e.target.value)} />
+              <button 
+                onClick={() => { onAddChar(name, desc); setName(''); setDesc(''); setShowAddChar(false); }}
+                className="w-full bg-primary text-black py-1.5 rounded text-[10px] font-black uppercase"
+              >Generate Master Plate</button>
+            </div>
+          )}
+
+          <div className="space-y-4">
+            {manifest.characters.map(char => (
+              <div key={char.id} className="group">
+                <div className="relative aspect-square rounded-xl overflow-hidden border border-white/5 shadow-2xl transition-all group-hover:border-primary/40">
+                  <img src={char.image} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt={char.name} />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent"></div>
+                  <div className="absolute bottom-3 left-3 right-3">
+                    <p className="text-[11px] font-black text-white uppercase tracking-wider">{char.name}</p>
+                    <p className="text-[8px] text-primary font-bold uppercase tracking-widest mt-0.5">{char.role}</p>
+                  </div>
+                </div>
+                <p className="mt-2 text-[9px] text-gray-500 leading-relaxed line-clamp-2 px-1">{char.description}</p>
               </div>
             ))}
           </div>
@@ -52,16 +66,35 @@ const WorldBible: React.FC<WorldBibleProps> = ({ manifest }) => {
 
         {/* Environments */}
         <section>
-          <h4 className="text-[10px] text-gray-600 font-bold uppercase tracking-widest mb-4">LOCATION PLATES</h4>
-          <div className="space-y-4">
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="text-[9px] text-gray-600 font-black uppercase tracking-[0.2em]">Location Plates</h4>
+            <button 
+              onClick={() => setShowAddEnv(!showAddEnv)}
+              className="size-5 rounded bg-primary/10 flex items-center justify-center text-primary hover:bg-primary/20 transition-all"
+            >
+              <span className="material-symbols-outlined text-sm">{showAddEnv ? 'close' : 'add'}</span>
+            </button>
+          </div>
+
+          {showAddEnv && (
+            <div className="mb-6 p-3 bg-white/5 rounded-xl border border-white/10 space-y-3">
+              <input className="w-full bg-black/40 border-white/10 rounded text-xs text-white" placeholder="Location Name" value={name} onChange={e => setName(e.target.value)} />
+              <textarea className="w-full bg-black/40 border-white/10 rounded text-xs text-white h-16" placeholder="Description (Mood, Lighting)" value={desc} onChange={e => setDesc(e.target.value)} />
+              <button 
+                onClick={() => { onAddEnv(name, desc); setName(''); setDesc(''); setShowAddEnv(false); }}
+                className="w-full bg-primary text-black py-1.5 rounded text-[10px] font-black uppercase"
+              >Generate Location Plate</button>
+            </div>
+          )}
+
+          <div className="space-y-6">
             {manifest.environments.map(env => (
-              <div key={env.id} className="relative rounded-lg overflow-hidden h-24 border border-white/5 group">
-                <img src={env.image} className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt="" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-80"></div>
-                <div className="absolute bottom-2 left-3 right-3">
-                  <p className="text-[10px] font-bold text-white truncate">{env.name}</p>
-                  <div className="flex gap-1 mt-1">
-                    {env.colors.map((c, i) => <div key={i} className="h-1 flex-1 rounded-full" style={{ backgroundColor: c }}></div>)}
+              <div key={env.id} className="group cursor-pointer">
+                <div className="relative aspect-video rounded-xl overflow-hidden border border-white/5 shadow-2xl transition-all group-hover:border-primary/40">
+                  <img src={env.image} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt={env.name} />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent"></div>
+                  <div className="absolute bottom-3 left-3 right-3">
+                    <p className="text-[10px] font-black text-white uppercase tracking-wider">{env.name}</p>
                   </div>
                 </div>
               </div>

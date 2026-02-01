@@ -6,9 +6,10 @@ import { DirectorsBrief } from '../types';
 interface TimelineFooterProps {
   sentimentData: { time: string; value: number; suspense: number }[];
   currentBrief?: DirectorsBrief;
+  shotType?: string;
 }
 
-const TimelineFooter: React.FC<TimelineFooterProps> = ({ sentimentData, currentBrief }) => {
+const TimelineFooter: React.FC<TimelineFooterProps> = ({ sentimentData, currentBrief, shotType }) => {
   return (
     <footer className="h-56 border-t border-accent-dark bg-panel-dark flex flex-col z-30">
       <div className="px-6 py-2 border-b border-white/5 flex justify-between items-center bg-black/20">
@@ -17,9 +18,10 @@ const TimelineFooter: React.FC<TimelineFooterProps> = ({ sentimentData, currentB
             <span className="material-symbols-outlined text-primary text-sm">psychology_alt</span>
             <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400">Director’s Brief Panel</span>
           </div>
-          {currentBrief && (
-            <div className="flex gap-4">
-              <span className="text-[9px] text-primary/70 font-bold uppercase border-l border-white/10 pl-4">Frame Reasoning: Active</span>
+          {shotType && (
+            <div className="flex items-center gap-2 bg-primary/10 px-2 py-0.5 rounded border border-primary/20">
+              <span className="material-symbols-outlined text-[10px] text-primary">videocam</span>
+              <span className="text-[9px] text-primary font-black uppercase tracking-widest">{shotType}</span>
             </div>
           )}
         </div>
@@ -30,7 +32,7 @@ const TimelineFooter: React.FC<TimelineFooterProps> = ({ sentimentData, currentB
         {/* Reasoning Display */}
         <div className="w-80 border-r border-white/5 p-4 flex flex-col justify-between bg-black/10">
           {currentBrief ? (
-            <div className="space-y-3">
+            <div className="space-y-3 overflow-y-auto custom-scrollbar pr-2">
               <div className="flex flex-col">
                 <span className="text-[8px] text-gray-500 font-black uppercase mb-1">Emotional Arc</span>
                 <p className="text-[10px] text-white leading-tight font-medium">{currentBrief.emotionalArc}</p>
@@ -67,11 +69,6 @@ const TimelineFooter: React.FC<TimelineFooterProps> = ({ sentimentData, currentB
                 <Area type="monotone" dataKey="suspense" stroke="#3b82f6" strokeWidth={1} fillOpacity={0} strokeDasharray="3 3" />
               </AreaChart>
             </ResponsiveContainer>
-            
-            {/* Markers */}
-            <div className="absolute top-0 bottom-0 left-1/4 w-px bg-white/10"></div>
-            <div className="absolute top-0 bottom-0 left-2/4 w-px bg-white/10"></div>
-            <div className="absolute top-0 bottom-0 left-3/4 w-px bg-white/10"></div>
           </div>
 
           <div className="h-12 border-t border-white/5 flex items-center px-6 gap-12 bg-black/20">
@@ -79,7 +76,7 @@ const TimelineFooter: React.FC<TimelineFooterProps> = ({ sentimentData, currentB
               <span className="text-[9px] text-gray-500 font-black uppercase tracking-widest">Key Cues</span>
               <div className="h-4 w-px bg-white/10"></div>
             </div>
-            {['Sound: Distant Rain', 'VFX: Hologram Flicker', 'Score: Industrial Low'].map((cue, i) => (
+            {['Reciprocal Lighting', 'Spatial Integration', 'Likeness Locked'].map((cue, i) => (
               <div key={i} className="flex items-center gap-2 group cursor-pointer hover:text-primary transition-all">
                 <div className="size-2 rounded-full border border-primary/50 group-hover:bg-primary shadow-lg transition-all"></div>
                 <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{cue}</span>
@@ -90,8 +87,7 @@ const TimelineFooter: React.FC<TimelineFooterProps> = ({ sentimentData, currentB
           <div className="h-4 flex justify-between px-6 text-[8px] text-gray-600 bg-background-dark font-mono border-t border-white/5">
             <span>00:00</span><span>00:10</span><span>00:20</span><span>00:30</span><span>00:40</span><span>00:50</span><span>01:00</span>
           </div>
-
-          {/* Scrubber */}
+          
           <div className="absolute top-0 bottom-0 left-[200px] w-px bg-primary z-20 pointer-events-none shadow-[0_0_15px_rgba(236,182,19,0.5)]">
             <div className="absolute -top-1 -left-1.5 size-3 bg-primary rounded-sm rotate-45 shadow-xl"></div>
           </div>
