@@ -14,6 +14,24 @@ const WorldBible: React.FC<WorldBibleProps> = ({ manifest, onAddChar, onAddEnv }
   const [name, setName] = useState('');
   const [desc, setDesc] = useState('');
 
+  const renderAssetImage = (imageUrl: string, alt: string, aspectRatio: 'square' | 'video') => {
+    if (imageUrl.startsWith('loading://')) {
+      return (
+        <div className={`absolute inset-0 bg-black/80 flex flex-col items-center justify-center`}>
+          <div className="size-6 border-2 border-primary/40 border-t-primary rounded-full animate-spin mb-2"></div>
+          <span className="text-[8px] font-black uppercase tracking-[0.2em] text-primary/80 animate-pulse">Rendering...</span>
+        </div>
+      );
+    }
+    return (
+      <img 
+        src={imageUrl} 
+        className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+        alt={alt} 
+      />
+    );
+  };
+
   return (
     <aside className="w-80 border-l border-accent-dark bg-panel-dark flex flex-col">
       <div className="p-4 border-b border-accent-dark bg-black/10 flex justify-between items-center">
@@ -39,7 +57,7 @@ const WorldBible: React.FC<WorldBibleProps> = ({ manifest, onAddChar, onAddEnv }
           {showAddChar && (
             <div className="mb-6 p-3 bg-white/5 rounded-xl border border-white/10 space-y-3">
               <input className="w-full bg-black/40 border-white/10 rounded text-xs text-white" placeholder="Name" value={name} onChange={e => setName(e.target.value)} />
-              <textarea className="w-full bg-black/40 border-white/10 rounded text-xs text-white h-16" placeholder="Description" value={desc} onChange={e => setDesc(e.target.value)} />
+              <textarea className="w-full bg-black/40 border-white/10 rounded text-xs text-white h-16" placeholder="Description (Look, Traits)" value={desc} onChange={e => setDesc(e.target.value)} />
               <button 
                 onClick={() => { onAddChar(name, desc); setName(''); setDesc(''); setShowAddChar(false); }}
                 className="w-full bg-primary text-black py-1.5 rounded text-[10px] font-black uppercase"
@@ -51,7 +69,7 @@ const WorldBible: React.FC<WorldBibleProps> = ({ manifest, onAddChar, onAddEnv }
             {manifest.characters.map(char => (
               <div key={char.id} className="group">
                 <div className="relative aspect-square rounded-xl overflow-hidden border border-white/5 shadow-2xl transition-all group-hover:border-primary/40">
-                  <img src={char.image} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt={char.name} />
+                  {renderAssetImage(char.image, char.name, 'square')}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent"></div>
                   <div className="absolute bottom-3 left-3 right-3">
                     <p className="text-[11px] font-black text-white uppercase tracking-wider">{char.name}</p>
@@ -79,11 +97,11 @@ const WorldBible: React.FC<WorldBibleProps> = ({ manifest, onAddChar, onAddEnv }
           {showAddEnv && (
             <div className="mb-6 p-3 bg-white/5 rounded-xl border border-white/10 space-y-3">
               <input className="w-full bg-black/40 border-white/10 rounded text-xs text-white" placeholder="Location Name" value={name} onChange={e => setName(e.target.value)} />
-              <textarea className="w-full bg-black/40 border-white/10 rounded text-xs text-white h-16" placeholder="Description (Mood, Lighting)" value={desc} onChange={e => setDesc(e.target.value)} />
+              <textarea className="w-full bg-black/40 border-white/10 rounded text-xs text-white h-16" placeholder="Description (Mood, Architecture)" value={desc} onChange={e => setDesc(e.target.value)} />
               <button 
                 onClick={() => { onAddEnv(name, desc); setName(''); setDesc(''); setShowAddEnv(false); }}
                 className="w-full bg-primary text-black py-1.5 rounded text-[10px] font-black uppercase"
-              >Generate Location Plate</button>
+              >Generate World Plate</button>
             </div>
           )}
 
@@ -91,10 +109,11 @@ const WorldBible: React.FC<WorldBibleProps> = ({ manifest, onAddChar, onAddEnv }
             {manifest.environments.map(env => (
               <div key={env.id} className="group cursor-pointer">
                 <div className="relative aspect-video rounded-xl overflow-hidden border border-white/5 shadow-2xl transition-all group-hover:border-primary/40">
-                  <img src={env.image} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt={env.name} />
+                  {renderAssetImage(env.image, env.name, 'video')}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent"></div>
                   <div className="absolute bottom-3 left-3 right-3">
                     <p className="text-[10px] font-black text-white uppercase tracking-wider">{env.name}</p>
+                    <p className="text-[8px] text-primary font-bold uppercase tracking-widest mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">Select As Reference</p>
                   </div>
                 </div>
               </div>

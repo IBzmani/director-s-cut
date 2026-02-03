@@ -16,12 +16,19 @@ const App: React.FC = () => {
 
   const addCharacter = async (name: string, description: string) => {
     const id = `c-${Date.now()}`;
-    const newChar: Character = { id, name, role: "Principal", description, image: 'https://placehold.co/400x400/1a1a1a/ecb613?text=Generating+Plate...' };
+    const newChar: Character = { id, name, role: "Principal", description, image: 'loading://character' };
     
-    setScene(prev => ({
-      ...prev,
-      manifest: { ...prev.manifest, characters: [...prev.manifest.characters, newChar] }
-    }));
+    setScene(prev => {
+      // Remove the default 'Kaito' (c1) if it's the first manual addition
+      const filteredCharacters = prev.manifest.characters.filter(c => c.id !== 'c1');
+      return {
+        ...prev,
+        manifest: { 
+          ...prev.manifest, 
+          characters: [...filteredCharacters, newChar] 
+        }
+      };
+    });
 
     const img = await generateBibleAsset(name, description, 'character');
     if (img) {
@@ -37,12 +44,19 @@ const App: React.FC = () => {
 
   const addEnvironment = async (name: string, description: string) => {
     const id = `e-${Date.now()}`;
-    const newEnv: Environment = { id, name, mood: "Concept", colors: ['#555'], image: 'https://placehold.co/800x450/1a1a1a/ecb613?text=Generating+World...' };
+    const newEnv: Environment = { id, name, mood: "Concept", colors: ['#555'], image: 'loading://environment' };
     
-    setScene(prev => ({
-      ...prev,
-      manifest: { ...prev.manifest, environments: [...prev.manifest.environments, newEnv] }
-    }));
+    setScene(prev => {
+      // Remove the default 'Neo-Tokyo' (e1) if it's the first manual addition
+      const filteredEnvironments = prev.manifest.environments.filter(e => e.id !== 'e1');
+      return {
+        ...prev,
+        manifest: { 
+          ...prev.manifest, 
+          environments: [...filteredEnvironments, newEnv] 
+        }
+      };
+    });
 
     const img = await generateBibleAsset(name, description, 'environment');
     if (img) {
@@ -60,10 +74,20 @@ const App: React.FC = () => {
     setIsGenerating(true);
     try {
       const analysis = await analyzeManuscriptDeep(text);
-      const characters = (analysis.characters || []).map((c: any, i: number) => ({ ...c, id: `c-auto-${i}`, image: 'https://placehold.co/400x400?text=Wait...' }));
-      const environments = (analysis.environments || []).map((e: any, i: number) => ({ ...e, id: `e-auto-${i}`, image: 'https://placehold.co/800x450?text=Wait...' }));
+      // Generate clean arrays for the new project
+      const characters = (analysis.characters || []).map((c: any, i: number) => ({ ...c, id: `c-auto-${i}`, image: 'loading://character' }));
+      const environments = (analysis.environments || []).map((e: any, i: number) => ({ ...e, id: `e-auto-${i}`, image: 'loading://environment' }));
       
-      setScene(prev => ({ ...prev, script: text, manifest: { ...prev.manifest, characters, environments } }));
+      // Completely replace characters and environments to clear defaults
+      setScene(prev => ({ 
+        ...prev, 
+        script: text, 
+        manifest: { 
+          ...prev.manifest, 
+          characters, 
+          environments 
+        } 
+      }));
 
       characters.forEach(async (char: any) => {
         const img = await generateBibleAsset(char.name, char.description, 'character');

@@ -33,7 +33,7 @@ async function toBase64(url: string): Promise<{ data: string, mimeType: string }
   }
 }
 
-const STYLE_GUIDE = "Aesthetic: High-end cinematic production sketch. Professional cinematography, realistic volumetric lighting, deep shadows, sharp digital painting. 8k resolution look.";
+const STYLE_GUIDE = "Aesthetic: High-fidelity cinematic concept art. Professional cinematography, realistic volumetric lighting, deep shadows, sharp digital painting. 8k resolution look.";
 
 export const generateBibleAsset = async (name: string, description: string, type: 'character' | 'environment') => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -124,17 +124,17 @@ export const generateNanoBananaImage = async (
     if (char?.image.startsWith('data:')) {
       const b64 = await toBase64(char.image);
       parts.push({ inlineData: { mimeType: b64.mimeType, data: b64.data } });
-      parts.push({ text: `IDENTITY: This is ${char.name}. Maintain exact facial features and build.` });
+      parts.push({ text: `CHARACTER IDENTITY: This is ${char.name}. Maintain exact facial features, hairstyle, and costume.` });
     }
   }
 
-  // 2. WORLD ANCHOR (THEMATIC STYLE, NOT LITERAL BACKGROUND)
+  // 2. WORLD ANCHOR (VISUAL DNA - Architecture, Lighting, Materials)
   if (references.envId) {
     const env = manifest.environments.find(e => e.id === references.envId);
     if (env?.image.startsWith('data:')) {
       const b64 = await toBase64(env.image);
       parts.push({ inlineData: { mimeType: b64.mimeType, data: b64.data } });
-      parts.push({ text: `WORLD IDENTITY: The location is ${env.name}. Use this architecture, materials, and atmospheric lighting style. Reinterpret the perspective to fit the ${references.shotType || 'shot'}.` });
+      parts.push({ text: `VISUAL DNA: Extract the architectural style, lighting temperature, and materials from this world reference. Apply them to the new perspective required by the ${references.shotType || 'shot'}. The environment should be reconstructed from a new angle, not just reused as a flat background.` });
     }
   }
 
@@ -142,13 +142,13 @@ export const generateNanoBananaImage = async (
   if (baseImage) {
     const b64 = await toBase64(baseImage);
     parts.push({ inlineData: { mimeType: b64.mimeType, data: b64.data } });
-    if (clickCoord) parts.push({ text: `PAINTOVER: Update the region at [x:${clickCoord.x}, y:${clickCoord.y}]. Instruction: ${prompt}` });
+    if (clickCoord) parts.push({ text: `LOCAL EDIT: Focus the modification at region [x:${clickCoord.x}, y:${clickCoord.y}]. Instruction: ${prompt}` });
   }
 
-  // 4. THE ACTION & INTEGRATION
-  const actionText = `CINEMATIC SHOT: ${references.shotType || ''} of ${prompt}. 
-  EMOTIONAL TONE: ${references.emotion || 'Dramatic'}. 
-  INTEGRATION: Character MUST be physically in the space, with the environment's lighting reflected on their surfaces. 
+  // 4. THE ACTION & DYNAMIC INTEGRATION
+  const actionText = `CINEMATIC STORYBOARD: ${references.shotType || ''} showing ${prompt}. 
+  EMOTION: ${references.emotion || 'Intense'}. 
+  SPATIAL COHERENCE: Place the character deeply within the volume of the environment. Ensure the world's lighting (rim lights, bounce light) is physically reflected on the character's form. 
   ${STYLE_GUIDE}`;
   
   parts.push({ text: actionText });
@@ -175,9 +175,8 @@ export const generateEmotionalAudio = async (text: string, brief: string) => {
       config: {
         responseModalities: [Modality.AUDIO],
         speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } } },
-        systemInstruction: `VOICE ACTOR DIRECTIVE: Perform the dialogue with the following emotional intensity: ${brief}. 
-        IMPORTANT: Your output will be used for a professional cinematic sequence. Maintain consistent character voice. 
-        ONLY speak the dialogue text. DO NOT read parentheticals or metadata.`
+        systemInstruction: `PERFORMANCE DIRECTIVE: You are a professional voice actor. Deliver the dialogue with the emotional nuance of: ${brief}. 
+        Speak ONLY the dialogue. Do not read metadata. Character consistency is paramount.`
       },
     });
     return response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
