@@ -19,7 +19,7 @@ const App: React.FC = () => {
     const newChar: Character = { id, name, role: "Principal", description, image: 'loading://character' };
     
     setScene(prev => {
-      // Remove the default 'Kaito' (c1) if it's the first manual addition
+      // Remove default demo character 'c1' (Kaito) immediately upon first manual add
       const filteredCharacters = prev.manifest.characters.filter(c => c.id !== 'c1');
       return {
         ...prev,
@@ -30,13 +30,25 @@ const App: React.FC = () => {
       };
     });
 
-    const img = await generateBibleAsset(name, description, 'character');
-    if (img) {
+    try {
+      const img = await generateBibleAsset(name, description, 'character');
+      if (img) {
+        setScene(prev => ({
+          ...prev,
+          manifest: { 
+            ...prev.manifest, 
+            characters: prev.manifest.characters.map(c => c.id === id ? { ...c, image: img } : c) 
+          }
+        }));
+      }
+    } catch (err) {
+      console.error("Failed to generate character plate:", err);
+      // Revert loading state if failed
       setScene(prev => ({
         ...prev,
         manifest: { 
           ...prev.manifest, 
-          characters: prev.manifest.characters.map(c => c.id === id ? { ...c, image: img } : c) 
+          characters: prev.manifest.characters.filter(c => c.id !== id) 
         }
       }));
     }
@@ -47,7 +59,7 @@ const App: React.FC = () => {
     const newEnv: Environment = { id, name, mood: "Concept", colors: ['#555'], image: 'loading://environment' };
     
     setScene(prev => {
-      // Remove the default 'Neo-Tokyo' (e1) if it's the first manual addition
+      // Remove default demo environment 'e1' (Neo-Tokyo) immediately upon first manual add
       const filteredEnvironments = prev.manifest.environments.filter(e => e.id !== 'e1');
       return {
         ...prev,
@@ -58,13 +70,24 @@ const App: React.FC = () => {
       };
     });
 
-    const img = await generateBibleAsset(name, description, 'environment');
-    if (img) {
+    try {
+      const img = await generateBibleAsset(name, description, 'environment');
+      if (img) {
+        setScene(prev => ({
+          ...prev,
+          manifest: { 
+            ...prev.manifest, 
+            environments: prev.manifest.environments.map(e => e.id === id ? { ...e, image: img } : e) 
+          }
+        }));
+      }
+    } catch (err) {
+      console.error("Failed to generate location plate:", err);
       setScene(prev => ({
         ...prev,
         manifest: { 
           ...prev.manifest, 
-          environments: prev.manifest.environments.map(e => e.id === id ? { ...e, image: img } : e) 
+          environments: prev.manifest.environments.filter(e => e.id !== id) 
         }
       }));
     }
@@ -74,11 +97,9 @@ const App: React.FC = () => {
     setIsGenerating(true);
     try {
       const analysis = await analyzeManuscriptDeep(text);
-      // Generate clean arrays for the new project
       const characters = (analysis.characters || []).map((c: any, i: number) => ({ ...c, id: `c-auto-${i}`, image: 'loading://character' }));
       const environments = (analysis.environments || []).map((e: any, i: number) => ({ ...e, id: `e-auto-${i}`, image: 'loading://environment' }));
       
-      // Completely replace characters and environments to clear defaults
       setScene(prev => ({ 
         ...prev, 
         script: text, 
@@ -90,13 +111,17 @@ const App: React.FC = () => {
       }));
 
       characters.forEach(async (char: any) => {
-        const img = await generateBibleAsset(char.name, char.description, 'character');
-        if (img) setScene(prev => ({ ...prev, manifest: { ...prev.manifest, characters: prev.manifest.characters.map(c => c.id === char.id ? { ...c, image: img } : c) } }));
+        try {
+          const img = await generateBibleAsset(char.name, char.description, 'character');
+          if (img) setScene(prev => ({ ...prev, manifest: { ...prev.manifest, characters: prev.manifest.characters.map(c => c.id === char.id ? { ...c, image: img } : c) } }));
+        } catch (e) { console.warn("Failed auto-character gen:", e); }
       });
 
       environments.forEach(async (env: any) => {
-        const img = await generateBibleAsset(env.name, env.mood, 'environment');
-        if (img) setScene(prev => ({ ...prev, manifest: { ...prev.manifest, environments: prev.manifest.environments.map(e => e.id === env.id ? { ...e, image: img } : e) } }));
+        try {
+          const img = await generateBibleAsset(env.name, env.mood, 'environment');
+          if (img) setScene(prev => ({ ...prev, manifest: { ...prev.manifest, environments: prev.manifest.environments.map(e => e.id === env.id ? { ...e, image: img } : e) } }));
+        } catch (e) { console.warn("Failed auto-environment gen:", e); }
       });
     } finally {
       setIsGenerating(false);
@@ -119,21 +144,30 @@ const App: React.FC = () => {
       setScene(prev => ({ ...prev, frames: newFrames }));
       if (newFrames.length > 0) setSelectedFrameId(newFrames[0].id);
 
+      // Process frames sequentially or with small batches to avoid burst rate limits
       for (let frame of newFrames) {
-        const url = await generateNanoBananaImage(
-          frame.prompt, 
-          scene.manifest, 
-          { 
-            charId: frame.characterId, 
-            envId: frame.environmentId, 
-            shotType: frame.shotType,
-            emotion: frame.directorsBrief?.emotionalArc 
+        try {
+          const url = await generateNanoBananaImage(
+            frame.prompt, 
+            scene.manifest, 
+            { 
+              charId: frame.characterId, 
+              envId: frame.environmentId, 
+              shotType: frame.shotType,
+              emotion: frame.directorsBrief?.emotionalArc 
+            }
+          );
+          if (url) {
+            setScene(prev => ({
+              ...prev,
+              frames: prev.frames.map(f => f.id === frame.id ? { ...f, image: url, isGenerating: false } : f)
+            }));
           }
-        );
-        if (url) {
+        } catch (err) {
+          console.error("Frame generation failed after retries:", err);
           setScene(prev => ({
             ...prev,
-            frames: prev.frames.map(f => f.id === frame.id ? { ...f, image: url, isGenerating: false } : f)
+            frames: prev.frames.map(f => f.id === frame.id ? { ...f, isGenerating: false, image: 'https://placehold.co/1280x720/333/fff?text=Generation+Timeout' } : f)
           }));
         }
       }
@@ -146,29 +180,39 @@ const App: React.FC = () => {
     const target = scene.frames.find(f => f.id === frameId);
     if (!target) return;
     setScene(prev => ({ ...prev, frames: prev.frames.map(f => f.id === frameId ? { ...f, isGenerating: true } : f) }));
-    const editedUrl = await generateNanoBananaImage(
-      instruction, 
-      scene.manifest, 
-      { 
-        charId: (target as any).characterId, 
-        envId: (target as any).environmentId,
-        shotType: (target as any).shotType,
-        emotion: (target as any).directorsBrief?.emotionalArc
-      }, 
-      target.image, 
-      coord
-    );
-    if (editedUrl) setScene(prev => ({ ...prev, frames: prev.frames.map(f => f.id === frameId ? { ...f, image: editedUrl, isGenerating: false } : f) }));
+    try {
+      const editedUrl = await generateNanoBananaImage(
+        instruction, 
+        scene.manifest, 
+        { 
+          charId: (target as any).characterId, 
+          envId: (target as any).environmentId,
+          shotType: (target as any).shotType,
+          emotion: (target as any).directorsBrief?.emotionalArc
+        }, 
+        target.image, 
+        coord
+      );
+      if (editedUrl) setScene(prev => ({ ...prev, frames: prev.frames.map(f => f.id === frameId ? { ...f, image: editedUrl, isGenerating: false } : f) }));
+    } catch (err) {
+      console.error("Edit failed:", err);
+      setScene(prev => ({ ...prev, frames: prev.frames.map(f => f.id === frameId ? { ...f, isGenerating: false } : f) }));
+    }
   };
 
   const handleSynthesizeAudio = async (frameId: string) => {
     const frame = scene.frames.find(f => f.id === frameId);
     if (!frame?.scriptSegment) return;
     setScene(prev => ({ ...prev, frames: prev.frames.map(f => f.id === frameId ? { ...f, isGeneratingAudio: true } : f) }));
-    const audio = await generateEmotionalAudio(frame.scriptSegment, frame.directorsBrief?.emotionalArc || "Cinematic Performance");
-    if (audio) {
-      setScene(prev => ({ ...prev, frames: prev.frames.map(f => f.id === frameId ? { ...f, audioData: audio, isGeneratingAudio: false } : f) }));
-      playAudio(audio);
+    try {
+      const audio = await generateEmotionalAudio(frame.scriptSegment, frame.directorsBrief?.emotionalArc || "Cinematic Performance");
+      if (audio) {
+        setScene(prev => ({ ...prev, frames: prev.frames.map(f => f.id === frameId ? { ...f, audioData: audio, isGeneratingAudio: false } : f) }));
+        playAudio(audio);
+      }
+    } catch (err) {
+      console.error("Audio synthesis failed:", err);
+      setScene(prev => ({ ...prev, frames: prev.frames.map(f => f.id === frameId ? { ...f, isGeneratingAudio: false } : f) }));
     }
   };
 
