@@ -56,8 +56,10 @@ const WorldBible: React.FC<WorldBibleProps> = ({ manifest, onAddChar, onAddEnv }
 
           {showAddChar && (
             <div className="mb-6 p-3 bg-white/5 rounded-xl border border-white/10 space-y-3">
-              <input className="w-full bg-black/40 border-white/10 rounded text-xs text-white" placeholder="Name" value={name} onChange={e => setName(e.target.value)} />
-              <textarea className="w-full bg-black/40 border-white/10 rounded text-xs text-white h-16" placeholder="Description (Look, Traits)" value={desc} onChange={e => setDesc(e.target.value)} />
+              {/* Fix: Cast e.target to any to resolve property 'value' missing error on HTMLInputElement */}
+              <input className="w-full bg-black/40 border-white/10 rounded text-xs text-white" placeholder="Name" value={name} onChange={e => setName((e.target as any).value)} />
+              {/* Fix: Cast e.target to any to resolve property 'value' missing error on HTMLTextAreaElement */}
+              <textarea className="w-full bg-black/40 border-white/10 rounded text-xs text-white h-16" placeholder="Description (Look, Traits)" value={desc} onChange={e => setDesc((e.target as any).value)} />
               <button 
                 onClick={() => { onAddChar(name, desc); setName(''); setDesc(''); setShowAddChar(false); }}
                 className="w-full bg-primary text-black py-1.5 rounded text-[10px] font-black uppercase"
@@ -96,8 +98,10 @@ const WorldBible: React.FC<WorldBibleProps> = ({ manifest, onAddChar, onAddEnv }
 
           {showAddEnv && (
             <div className="mb-6 p-3 bg-white/5 rounded-xl border border-white/10 space-y-3">
-              <input className="w-full bg-black/40 border-white/10 rounded text-xs text-white" placeholder="Location Name" value={name} onChange={e => setName(e.target.value)} />
-              <textarea className="w-full bg-black/40 border-white/10 rounded text-xs text-white h-16" placeholder="Description (Mood, Architecture)" value={desc} onChange={e => setDesc(e.target.value)} />
+              {/* Fix: Cast e.target to any to resolve property 'value' missing error on HTMLInputElement */}
+              <input className="w-full bg-black/40 border-white/10 rounded text-xs text-white" placeholder="Location Name" value={name} onChange={e => setName((e.target as any).value)} />
+              {/* Fix: Cast e.target to any to resolve property 'value' missing error on HTMLTextAreaElement */}
+              <textarea className="w-full bg-black/40 border-white/10 rounded text-xs text-white h-16" placeholder="Description (Mood, Architecture)" value={desc} onChange={e => setDesc((e.target as any).value)} />
               <button 
                 onClick={() => { onAddEnv(name, desc); setName(''); setDesc(''); setShowAddEnv(false); }}
                 className="w-full bg-primary text-black py-1.5 rounded text-[10px] font-black uppercase"

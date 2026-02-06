@@ -3,10 +3,12 @@ import React from 'react';
 
 interface HeaderProps {
   onGenerate: () => void;
+  onExport: () => void;
   isGenerating: boolean;
+  isExporting: boolean;
 }
 
-const Header: React.FC<HeaderProps> = ({ onGenerate, isGenerating }) => {
+const Header: React.FC<HeaderProps> = ({ onGenerate, onExport, isGenerating, isExporting }) => {
   return (
     <header className="flex items-center justify-between h-14 border-b border-accent-dark px-6 bg-panel-dark z-20">
       <div className="flex items-center gap-6">
@@ -34,9 +36,19 @@ const Header: React.FC<HeaderProps> = ({ onGenerate, isGenerating }) => {
             type="text"
           />
         </div>
+        
+        <button 
+          onClick={onExport}
+          disabled={isExporting || isGenerating}
+          className={`flex items-center gap-2 bg-white/5 text-gray-300 px-4 py-1.5 rounded-lg font-bold text-sm border border-white/10 hover:bg-white/10 transition-all ${isExporting ? 'opacity-50 cursor-not-allowed' : ''}`}
+        >
+          <span className="material-symbols-outlined text-[18px]">movie</span>
+          <span>{isExporting ? 'Exporting...' : 'Export Cinema'}</span>
+        </button>
+
         <button 
           onClick={onGenerate}
-          disabled={isGenerating}
+          disabled={isGenerating || isExporting}
           className={`flex items-center gap-2 bg-primary text-background-dark px-4 py-1.5 rounded-lg font-bold text-sm shadow-[0_0_15px_rgba(236,182,19,0.3)] hover:brightness-110 transition-all ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
           <span className={`material-symbols-outlined text-[18px] ${isGenerating ? 'animate-spin' : ''}`}>

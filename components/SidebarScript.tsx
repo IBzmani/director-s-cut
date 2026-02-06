@@ -11,9 +11,11 @@ interface SidebarScriptProps {
 }
 
 const SidebarScript: React.FC<SidebarScriptProps> = ({ script, onScriptChange, location, title, highlightText, onUpload }) => {
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Fix: Use any to bypass missing HTMLInputElement type
+  const fileInputRef = useRef<any>(null);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Fix: Use any for ChangeEvent generic to bypass missing HTMLInputElement type
+  const handleFileChange = (e: React.ChangeEvent<any>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
@@ -56,7 +58,8 @@ const SidebarScript: React.FC<SidebarScriptProps> = ({ script, onScriptChange, l
           <textarea 
             className="absolute inset-0 w-full h-full bg-transparent border-none focus:ring-0 text-transparent caret-white text-sm leading-relaxed resize-none p-0 z-10"
             value={script}
-            onChange={(e) => onScriptChange(e.target.value)}
+            // Fix: Cast e.target to any to resolve property 'value' missing error on HTMLTextAreaElement
+            onChange={(e) => onScriptChange((e.target as any).value)}
           />
           <div className="text-gray-400 text-sm leading-relaxed whitespace-pre-wrap select-none z-0">
             {renderScript()}

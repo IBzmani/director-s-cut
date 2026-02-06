@@ -8,10 +8,13 @@ import VisionStage from './components/VisionStage';
 import WorldBible from './components/WorldBible';
 import TimelineFooter from './components/TimelineFooter';
 import { analyzeManuscriptDeep, generateSceneWithBrief, generateNanoBananaImage, generateEmotionalAudio, generateBibleAsset } from './services/geminiService';
+import { exportCinemaMovie } from './services/exportService';
 
 const App: React.FC = () => {
   const [scene, setScene] = useState<SceneState>(INITIAL_SCENE);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportProgress, setExportProgress] = useState(0);
   const [selectedFrameId, setSelectedFrameId] = useState<string | null>(scene.frames[0]?.id || null);
 
   const addCharacter = async (name: string, description: string) => {
@@ -19,7 +22,6 @@ const App: React.FC = () => {
     const newChar: Character = { id, name, role: "Principal", description, image: 'loading://character' };
     
     setScene(prev => {
-      // Remove default demo character 'c1' (Kaito) immediately upon first manual add
       const filteredCharacters = prev.manifest.characters.filter(c => c.id !== 'c1');
       return {
         ...prev,
@@ -42,8 +44,7 @@ const App: React.FC = () => {
         }));
       }
     } catch (err) {
-      console.error("Failed to generate character plate:", err);
-      // Revert loading state if failed
+      console.error("Failed to generate character xplate:", err);
       setScene(prev => ({
         ...prev,
         manifest: { 
@@ -59,7 +60,6 @@ const App: React.FC = () => {
     const newEnv: Environment = { id, name, mood: "Concept", colors: ['#555'], image: 'loading://environment' };
     
     setScene(prev => {
-      // Remove default demo environment 'e1' (Neo-Tokyo) immediately upon first manual add
       const filteredEnvironments = prev.manifest.environments.filter(e => e.id !== 'e1');
       return {
         ...prev,
@@ -114,7 +114,7 @@ const App: React.FC = () => {
         try {
           const img = await generateBibleAsset(char.name, char.description, 'character');
           if (img) setScene(prev => ({ ...prev, manifest: { ...prev.manifest, characters: prev.manifest.characters.map(c => c.id === char.id ? { ...c, image: img } : c) } }));
-        } catch (e) { console.warn("Failed auto-character gen:", e); }
+        } catch (e) { console.warn("Failed auto-character xplate gen:", e); }
       });
 
       environments.forEach(async (env: any) => {
@@ -144,7 +144,6 @@ const App: React.FC = () => {
       setScene(prev => ({ ...prev, frames: newFrames }));
       if (newFrames.length > 0) setSelectedFrameId(newFrames[0].id);
 
-      // Process frames sequentially or with small batches to avoid burst rate limits
       for (let frame of newFrames) {
         try {
           const url = await generateNanoBananaImage(
@@ -173,6 +172,26 @@ const App: React.FC = () => {
       }
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const handleExportMovie = async () => {
+    if (isExporting) return;
+    setIsExporting(true);
+    setExportProgress(0);
+    try {
+      const videoUrl = await exportCinemaMovie(scene.frames, (p) => setExportProgress(p));
+      // Fix: Access document through window with any cast
+      const a = (window as any).document.createElement('a');
+      a.href = videoUrl;
+      a.download = `${scene.title || 'Director_Cut_Export'}.mp4`;
+      a.click();
+    } catch (err) {
+      console.error("Movie export failed:", err);
+      // Fix: Access alert through window with any cast
+      (window as any).alert("Failed to export movie. Ensure frames have both visuals and audio synthesized.");
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -217,7 +236,9 @@ const App: React.FC = () => {
   };
 
   const playAudio = async (base64: string) => {
-    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+    // Fix: Access AudioContext through window with casting to avoid missing type errors
+    const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
+    const ctx = new AudioContextClass({ sampleRate: 24000 });
     const binary = atob(base64);
     const bytes = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
@@ -234,14 +255,42 @@ const App: React.FC = () => {
   const selectedFrame = scene.frames.find(f => f.id === selectedFrameId);
 
   return (
-    <div className="flex flex-col h-screen bg-background-dark text-white font-display overflow-hidden">
-      <Header onGenerate={handleGenerateStoryboard} isGenerating={isGenerating} />
+    <div className="flex flex-col h-screen bg-background-dark text-white font-display overflow-hidden relative">
+      <Header 
+        onGenerate={handleGenerateStoryboard} 
+        onExport={handleExportMovie} 
+        isGenerating={isGenerating} 
+        isExporting={isExporting} 
+      />
       <main className="flex flex-1 overflow-hidden">
         <SidebarScript script={scene.script} onScriptChange={(s) => setScene(prev => ({ ...prev, script: s }))} location={scene.location} title={scene.title} highlightText={selectedFrame?.scriptSegment} onUpload={handleManuscriptUpload} />
         <VisionStage frames={scene.frames} selectedFrameId={selectedFrameId} onSelectFrame={setSelectedFrameId} onRefine={handlePaintToEdit} onPlayAudio={handleSynthesizeAudio} />
         <WorldBible manifest={scene.manifest} onAddChar={addCharacter} onAddEnv={addEnvironment} />
       </main>
       <TimelineFooter sentimentData={scene.sentimentData} currentBrief={selectedFrame?.directorsBrief} shotType={(selectedFrame as any)?.shotType} />
+
+      {/* Export Progress Overlay */}
+      {isExporting && (
+        <div className="absolute inset-0 bg-black/90 backdrop-blur-2xl z-[100] flex flex-col items-center justify-center">
+          <div className="w-[500px] flex flex-col items-center">
+            <div className="size-20 border-4 border-primary border-t-transparent rounded-full animate-spin mb-8 shadow-[0_0_30px_rgba(236,182,19,0.2)]"></div>
+            <h2 className="text-2xl font-bold tracking-tight mb-2">Rendering Cinema Movie</h2>
+            <p className="text-gray-500 text-sm uppercase tracking-widest font-bold mb-10">Stitching Vision & Voice: {exportProgress}%</p>
+            
+            <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden border border-white/5 mb-4">
+              <div 
+                className="h-full bg-primary shadow-[0_0_20px_rgba(236,182,19,0.5)] progress-bar-fill"
+                style={{ width: `${exportProgress}%` }}
+              ></div>
+            </div>
+            
+            <div className="flex justify-between w-full">
+              <span className="text-[10px] text-gray-600 font-mono">ENCODING_H264_AAC</span>
+              <span className="text-[10px] text-gray-600 font-mono tracking-widest uppercase">Direct-to-Disk Buffer</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

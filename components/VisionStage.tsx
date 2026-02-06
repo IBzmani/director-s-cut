@@ -14,7 +14,8 @@ const VisionStage: React.FC<VisionStageProps> = ({ frames, selectedFrameId, onSe
   const [instruction, setInstruction] = useState("");
   const [clickCoord, setClickCoord] = useState<{ x: number, y: number } | null>(null);
 
-  const handleImageClick = (e: React.MouseEvent<HTMLDivElement>, frameId: string) => {
+  // Fix: Use any for MouseEvent generic to bypass missing HTMLDivElement type
+  const handleImageClick = (e: React.MouseEvent<any>, frameId: string) => {
     if (selectedFrameId !== frameId) {
       onSelectFrame(frameId);
       return;
@@ -99,7 +100,8 @@ const VisionStage: React.FC<VisionStageProps> = ({ frames, selectedFrameId, onSe
                         className="flex-1 bg-transparent border-none focus:ring-0 text-[11px] placeholder:text-gray-500 text-white" 
                         placeholder={clickCoord ? `Editing target area [${clickCoord.x}, ${clickCoord.y}]...` : "Localized Paint-to-Edit: Click image to target region"} 
                         value={instruction}
-                        onChange={(e) => setInstruction(e.target.value)}
+                        // Fix: Cast e.target to any to resolve property 'value' missing error on HTMLInputElement
+                        onChange={(e) => setInstruction((e.target as any).value)}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') handleRepaint();
                         }}
