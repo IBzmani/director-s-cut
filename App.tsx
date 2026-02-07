@@ -17,9 +17,15 @@ const App: React.FC = () => {
   const [exportProgress, setExportProgress] = useState(0);
   const [selectedFrameId, setSelectedFrameId] = useState<string | null>(scene.frames[0]?.id || null);
 
-  const addCharacter = async (name: string, description: string) => {
+  const addCharacter = async (name: string, description: string, imageUrl?: string) => {
     const id = `c-${Date.now()}`;
-    const newChar: Character = { id, name, role: "Principal", description, image: 'loading://character' };
+    const newChar: Character = { 
+      id, 
+      name, 
+      role: "Principal", 
+      description, 
+      image: imageUrl || 'loading://character' 
+    };
     
     setScene(prev => {
       const filteredCharacters = prev.manifest.characters.filter(c => c.id !== 'c1');
@@ -31,6 +37,8 @@ const App: React.FC = () => {
         }
       };
     });
+
+    if (imageUrl) return;
 
     try {
       const img = await generateBibleAsset(name, description, 'character');
@@ -55,9 +63,15 @@ const App: React.FC = () => {
     }
   };
 
-  const addEnvironment = async (name: string, description: string) => {
+  const addEnvironment = async (name: string, description: string, imageUrl?: string) => {
     const id = `e-${Date.now()}`;
-    const newEnv: Environment = { id, name, mood: "Concept", colors: ['#555'], image: 'loading://environment' };
+    const newEnv: Environment = { 
+      id, 
+      name, 
+      mood: "Concept", 
+      colors: ['#555'], 
+      image: imageUrl || 'loading://environment' 
+    };
     
     setScene(prev => {
       const filteredEnvironments = prev.manifest.environments.filter(e => e.id !== 'e1');
@@ -69,6 +83,8 @@ const App: React.FC = () => {
         }
       };
     });
+
+    if (imageUrl) return;
 
     try {
       const img = await generateBibleAsset(name, description, 'environment');
@@ -181,14 +197,12 @@ const App: React.FC = () => {
     setExportProgress(0);
     try {
       const videoUrl = await exportCinemaMovie(scene.frames, (p) => setExportProgress(p));
-      // Fix: Access document through window with any cast
       const a = (window as any).document.createElement('a');
       a.href = videoUrl;
       a.download = `${scene.title || 'Director_Cut_Export'}.mp4`;
       a.click();
     } catch (err) {
       console.error("Movie export failed:", err);
-      // Fix: Access alert through window with any cast
       (window as any).alert("Failed to export movie. Ensure frames have both visuals and audio synthesized.");
     } finally {
       setIsExporting(false);
@@ -236,7 +250,6 @@ const App: React.FC = () => {
   };
 
   const playAudio = async (base64: string) => {
-    // Fix: Access AudioContext through window with casting to avoid missing type errors
     const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
     const ctx = new AudioContextClass({ sampleRate: 24000 });
     const binary = atob(base64);
