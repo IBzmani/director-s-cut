@@ -26,7 +26,12 @@ const SidebarScript: React.FC<SidebarScriptProps> = ({ script, onScriptChange, l
 
   const renderScript = () => {
     if (!highlightText) return script;
-    const parts = script.split(new RegExp(`(${highlightText})`, 'gi'));
+    
+    // Fix: Escape special regex characters in the search term to prevent SyntaxError
+    // when the text contains brackets, hyphens, or other reserved characters.
+    const escapedHighlight = highlightText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const parts = script.split(new RegExp(`(${escapedHighlight})`, 'gi'));
+    
     return parts.map((part, i) => 
       part.toLowerCase() === highlightText.toLowerCase() ? 
       <span key={i} className="bg-primary/20 text-primary border-b border-primary/50 font-semibold px-0.5">{part}</span> : 

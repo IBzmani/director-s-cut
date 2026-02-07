@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { INITIAL_SCENE } from './constants';
-import { SceneState, Character, Environment } from './types';
+import { SceneState, Character, Environment, Frame } from './types';
 import Header from './components/Header';
 import SidebarScript from './components/SidebarScript';
 import VisionStage from './components/VisionStage';
@@ -27,16 +27,13 @@ const App: React.FC = () => {
       image: imageUrl || 'loading://character' 
     };
     
-    setScene(prev => {
-      const filteredCharacters = prev.manifest.characters.filter(c => c.id !== 'c1');
-      return {
-        ...prev,
-        manifest: { 
-          ...prev.manifest, 
-          characters: [...filteredCharacters, newChar] 
-        }
-      };
-    });
+    setScene(prev => ({
+      ...prev,
+      manifest: { 
+        ...prev.manifest, 
+        characters: [...prev.manifest.characters.filter(c => c.id !== 'c1'), newChar] 
+      }
+    }));
 
     if (imageUrl) return;
 
@@ -53,14 +50,18 @@ const App: React.FC = () => {
       }
     } catch (err) {
       console.error("Failed to generate character xplate:", err);
-      setScene(prev => ({
-        ...prev,
-        manifest: { 
-          ...prev.manifest, 
-          characters: prev.manifest.characters.filter(c => c.id !== id) 
-        }
-      }));
+      removeCharacter(id);
     }
+  };
+
+  const removeCharacter = (id: string) => {
+    setScene(prev => ({
+      ...prev,
+      manifest: {
+        ...prev.manifest,
+        characters: prev.manifest.characters.filter(c => c.id !== id)
+      }
+    }));
   };
 
   const addEnvironment = async (name: string, description: string, imageUrl?: string) => {
@@ -73,16 +74,13 @@ const App: React.FC = () => {
       image: imageUrl || 'loading://environment' 
     };
     
-    setScene(prev => {
-      const filteredEnvironments = prev.manifest.environments.filter(e => e.id !== 'e1');
-      return {
-        ...prev,
-        manifest: { 
-          ...prev.manifest, 
-          environments: [...filteredEnvironments, newEnv] 
-        }
-      };
-    });
+    setScene(prev => ({
+      ...prev,
+      manifest: { 
+        ...prev.manifest, 
+        environments: [...prev.manifest.environments.filter(e => e.id !== 'e1'), newEnv] 
+      }
+    }));
 
     if (imageUrl) return;
 
@@ -99,14 +97,54 @@ const App: React.FC = () => {
       }
     } catch (err) {
       console.error("Failed to generate location plate:", err);
-      setScene(prev => ({
-        ...prev,
-        manifest: { 
-          ...prev.manifest, 
-          environments: prev.manifest.environments.filter(e => e.id !== id) 
-        }
-      }));
+      removeEnvironment(id);
     }
+  };
+
+  const removeEnvironment = (id: string) => {
+    setScene(prev => ({
+      ...prev,
+      manifest: {
+        ...prev.manifest,
+        environments: prev.manifest.environments.filter(e => e.id !== id)
+      }
+    }));
+  };
+
+  const assignAssetToFrame = (assetId: string, type: 'char' | 'env') => {
+    if (!selectedFrameId) return;
+    setScene(prev => ({
+      ...prev,
+      frames: prev.frames.map(f => {
+        if (f.id === selectedFrameId) {
+          return type === 'char' 
+            ? { ...f, characterId: assetId } as any
+            : { ...f, environmentId: assetId } as any;
+        }
+        return f;
+      })
+    }));
+  };
+
+  const appendFrame = () => {
+    const id = `f-ext-${Date.now()}`;
+    const lastFrame = scene.frames[scene.frames.length - 1];
+    const newFrame: Frame = {
+      id,
+      title: `Frame ${String(scene.frames.length + 1).padStart(2, '0')}`,
+      timeRange: "00:00 - 00:05",
+      image: "https://placehold.co/1280x720/1a1a1a/444?text=Empty+Shot",
+      prompt: "New shot description...",
+      scriptSegment: "...",
+      directorsBrief: {
+        emotionalArc: "Neutral",
+        lightingScheme: "Standard",
+        cameraLogic: "Static",
+        pacing: "Moderate"
+      }
+    };
+    setScene(prev => ({ ...prev, frames: [...prev.frames, newFrame] }));
+    setSelectedFrameId(id);
   };
 
   const handleManuscriptUpload = async (text: string) => {
@@ -119,25 +157,17 @@ const App: React.FC = () => {
       setScene(prev => ({ 
         ...prev, 
         script: text, 
-        manifest: { 
-          ...prev.manifest, 
-          characters, 
-          environments 
-        } 
+        manifest: { ...prev.manifest, characters, environments } 
       }));
 
       characters.forEach(async (char: any) => {
-        try {
-          const img = await generateBibleAsset(char.name, char.description, 'character');
-          if (img) setScene(prev => ({ ...prev, manifest: { ...prev.manifest, characters: prev.manifest.characters.map(c => c.id === char.id ? { ...c, image: img } : c) } }));
-        } catch (e) { console.warn("Failed auto-character xplate gen:", e); }
+        const img = await generateBibleAsset(char.name, char.description, 'character');
+        if (img) setScene(prev => ({ ...prev, manifest: { ...prev.manifest, characters: prev.manifest.characters.map(c => c.id === char.id ? { ...c, image: img } : c) } }));
       });
 
       environments.forEach(async (env: any) => {
-        try {
-          const img = await generateBibleAsset(env.name, env.mood, 'environment');
-          if (img) setScene(prev => ({ ...prev, manifest: { ...prev.manifest, environments: prev.manifest.environments.map(e => e.id === env.id ? { ...e, image: img } : e) } }));
-        } catch (e) { console.warn("Failed auto-environment gen:", e); }
+        const img = await generateBibleAsset(env.name, env.mood, 'environment');
+        if (img) setScene(prev => ({ ...prev, manifest: { ...prev.manifest, environments: prev.manifest.environments.map(e => e.id === env.id ? { ...e, image: img } : e) } }));
       });
     } finally {
       setIsGenerating(false);
@@ -179,10 +209,10 @@ const App: React.FC = () => {
             }));
           }
         } catch (err) {
-          console.error("Frame generation failed after retries:", err);
+          console.error("Frame generation failed:", err);
           setScene(prev => ({
             ...prev,
-            frames: prev.frames.map(f => f.id === frame.id ? { ...f, isGenerating: false, image: 'https://placehold.co/1280x720/333/fff?text=Generation+Timeout' } : f)
+            frames: prev.frames.map(f => f.id === frame.id ? { ...f, isGenerating: false, image: 'https://placehold.co/1280x720/333/fff?text=Error' } : f)
           }));
         }
       }
@@ -199,11 +229,11 @@ const App: React.FC = () => {
       const videoUrl = await exportCinemaMovie(scene.frames, (p) => setExportProgress(p));
       const a = (window as any).document.createElement('a');
       a.href = videoUrl;
-      a.download = `${scene.title || 'Director_Cut_Export'}.mp4`;
+      a.download = `${scene.title || 'Director_Cut'}.mp4`;
       a.click();
     } catch (err) {
       console.error("Movie export failed:", err);
-      (window as any).alert("Failed to export movie. Ensure frames have both visuals and audio synthesized.");
+      (window as any).alert("Export failed. Ensure frames have both visuals and audio synthesized.");
     } finally {
       setIsExporting(false);
     }
@@ -228,7 +258,6 @@ const App: React.FC = () => {
       );
       if (editedUrl) setScene(prev => ({ ...prev, frames: prev.frames.map(f => f.id === frameId ? { ...f, image: editedUrl, isGenerating: false } : f) }));
     } catch (err) {
-      console.error("Edit failed:", err);
       setScene(prev => ({ ...prev, frames: prev.frames.map(f => f.id === frameId ? { ...f, isGenerating: false } : f) }));
     }
   };
@@ -238,13 +267,12 @@ const App: React.FC = () => {
     if (!frame?.scriptSegment) return;
     setScene(prev => ({ ...prev, frames: prev.frames.map(f => f.id === frameId ? { ...f, isGeneratingAudio: true } : f) }));
     try {
-      const audio = await generateEmotionalAudio(frame.scriptSegment, frame.directorsBrief?.emotionalArc || "Cinematic Performance");
+      const audio = await generateEmotionalAudio(frame.scriptSegment, frame.directorsBrief?.emotionalArc || "Dramatic");
       if (audio) {
         setScene(prev => ({ ...prev, frames: prev.frames.map(f => f.id === frameId ? { ...f, audioData: audio, isGeneratingAudio: false } : f) }));
         playAudio(audio);
       }
     } catch (err) {
-      console.error("Audio synthesis failed:", err);
       setScene(prev => ({ ...prev, frames: prev.frames.map(f => f.id === frameId ? { ...f, isGeneratingAudio: false } : f) }));
     }
   };
@@ -277,29 +305,37 @@ const App: React.FC = () => {
       />
       <main className="flex flex-1 overflow-hidden">
         <SidebarScript script={scene.script} onScriptChange={(s) => setScene(prev => ({ ...prev, script: s }))} location={scene.location} title={scene.title} highlightText={selectedFrame?.scriptSegment} onUpload={handleManuscriptUpload} />
-        <VisionStage frames={scene.frames} selectedFrameId={selectedFrameId} onSelectFrame={setSelectedFrameId} onRefine={handlePaintToEdit} onPlayAudio={handleSynthesizeAudio} />
-        <WorldBible manifest={scene.manifest} onAddChar={addCharacter} onAddEnv={addEnvironment} />
+        <VisionStage 
+          frames={scene.frames} 
+          selectedFrameId={selectedFrameId} 
+          onSelectFrame={setSelectedFrameId} 
+          onRefine={handlePaintToEdit} 
+          onPlayAudio={handleSynthesizeAudio} 
+          onAppendFrame={appendFrame}
+        />
+        <WorldBible 
+          manifest={scene.manifest} 
+          onAddChar={addCharacter} 
+          onRemoveChar={removeCharacter}
+          onAddEnv={addEnvironment} 
+          onRemoveEnv={removeEnvironment}
+          onSelectAsset={assignAssetToFrame}
+          selectedFrameAssets={{
+            charId: (selectedFrame as any)?.characterId,
+            envId: (selectedFrame as any)?.environmentId
+          }}
+        />
       </main>
       <TimelineFooter sentimentData={scene.sentimentData} currentBrief={selectedFrame?.directorsBrief} shotType={(selectedFrame as any)?.shotType} />
 
-      {/* Export Progress Overlay */}
       {isExporting && (
         <div className="absolute inset-0 bg-black/90 backdrop-blur-2xl z-[100] flex flex-col items-center justify-center">
           <div className="w-[500px] flex flex-col items-center">
             <div className="size-20 border-4 border-primary border-t-transparent rounded-full animate-spin mb-8 shadow-[0_0_30px_rgba(236,182,19,0.2)]"></div>
             <h2 className="text-2xl font-bold tracking-tight mb-2">Rendering Cinema Movie</h2>
-            <p className="text-gray-500 text-sm uppercase tracking-widest font-bold mb-10">Stitching Vision & Voice: {exportProgress}%</p>
-            
-            <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden border border-white/5 mb-4">
-              <div 
-                className="h-full bg-primary shadow-[0_0_20px_rgba(236,182,19,0.5)] progress-bar-fill"
-                style={{ width: `${exportProgress}%` }}
-              ></div>
-            </div>
-            
-            <div className="flex justify-between w-full">
-              <span className="text-[10px] text-gray-600 font-mono">ENCODING_H264_AAC</span>
-              <span className="text-[10px] text-gray-600 font-mono tracking-widest uppercase">Direct-to-Disk Buffer</span>
+            <p className="text-gray-500 text-sm uppercase tracking-widest font-bold mb-10">Stitching Sequence: {exportProgress}%</p>
+            <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden mb-4">
+              <div className="h-full bg-primary" style={{ width: `${exportProgress}%` }}></div>
             </div>
           </div>
         </div>

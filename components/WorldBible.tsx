@@ -5,12 +5,18 @@ import { VisualManifest } from '../types';
 interface WorldBibleProps {
   manifest: VisualManifest;
   onAddChar: (name: string, desc: string, imageUrl?: string) => void;
+  onRemoveChar: (id: string) => void;
   onAddEnv: (name: string, desc: string, imageUrl?: string) => void;
+  onRemoveEnv: (id: string) => void;
+  onSelectAsset: (id: string, type: 'char' | 'env') => void;
+  selectedFrameAssets: { charId?: string; envId?: string };
 }
 
 type MenuState = 'char' | 'env' | null;
 
-const WorldBible: React.FC<WorldBibleProps> = ({ manifest, onAddChar, onAddEnv }) => {
+const WorldBible: React.FC<WorldBibleProps> = ({ 
+  manifest, onAddChar, onRemoveChar, onAddEnv, onRemoveEnv, onSelectAsset, selectedFrameAssets 
+}) => {
   const [openMenu, setOpenMenu] = useState<MenuState>(null);
   const [activeForm, setActiveForm] = useState<MenuState>(null);
   const [name, setName] = useState('');
@@ -19,7 +25,6 @@ const WorldBible: React.FC<WorldBibleProps> = ({ manifest, onAddChar, onAddEnv }
   const charInputRef = useRef<HTMLInputElement>(null);
   const envInputRef = useRef<HTMLInputElement>(null);
 
-  // Close menus on click outside
   useEffect(() => {
     const handleClickOutside = () => setOpenMenu(null);
     window.addEventListener('click', handleClickOutside);
@@ -32,15 +37,19 @@ const WorldBible: React.FC<WorldBibleProps> = ({ manifest, onAddChar, onAddEnv }
       const reader = new FileReader();
       reader.onload = (event) => {
         const dataUrl = event.target?.result as string;
-        if (type === 'char') {
-          onAddChar(name || file.name.split('.')[0] || 'Imported Actor', desc, dataUrl);
-        } else {
-          onAddEnv(name || file.name.split('.')[0] || 'Imported Location', desc, dataUrl);
-        }
+        if (type === 'char') onAddChar(name || file.name.split('.')[0], desc, dataUrl);
+        else onAddEnv(name || file.name.split('.')[0], desc, dataUrl);
         resetForm();
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleDownload = (imageUrl: string, filename: string) => {
+    const link = document.createElement('a');
+    link.href = imageUrl;
+    link.download = `${filename.replace(/\s+/g, '_')}_plate.png`;
+    link.click();
   };
 
   const resetForm = () => {
@@ -50,21 +59,46 @@ const WorldBible: React.FC<WorldBibleProps> = ({ manifest, onAddChar, onAddEnv }
     setActiveForm(null);
   };
 
-  const renderAssetImage = (imageUrl: string, alt: string) => {
-    if (imageUrl.startsWith('loading://')) {
+  const renderAssetImage = (imageUrl: string, alt: string, id: string, type: 'char' | 'env') => {
+    const isLoading = imageUrl.startsWith('loading://');
+    const isLinked = (type === 'char' && selectedFrameAssets.charId === id) || (type === 'env' && selectedFrameAssets.envId === id);
+    
+    if (isLoading) {
       return (
         <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center">
           <div className="size-6 border-2 border-primary/40 border-t-primary rounded-full animate-spin mb-2"></div>
-          <span className="text-[8px] font-black uppercase tracking-[0.2em] text-primary/80 animate-pulse">Synthesizing...</span>
+          <span className="text-[8px] font-black uppercase tracking-[0.2em] text-primary/80 animate-pulse">Synthesis...</span>
         </div>
       );
     }
+
     return (
-      <img 
-        src={imageUrl} 
-        className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
-        alt={alt} 
-      />
+      <>
+        <img 
+          src={imageUrl} 
+          className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+          alt={alt} 
+        />
+        {isLinked && (
+          <div className="absolute top-2 left-2 bg-primary text-black text-[7px] font-black uppercase px-1.5 py-0.5 rounded shadow-xl z-20 animate-in zoom-in-50">
+            Linked to Frame
+          </div>
+        )}
+        <div className="absolute top-2 right-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+          <button 
+            onClick={(e) => { e.stopPropagation(); handleDownload(imageUrl, alt); }}
+            className="size-7 bg-black/60 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-primary hover:text-black transition-all border border-white/10"
+          >
+            <span className="material-symbols-outlined text-[16px]">download</span>
+          </button>
+          <button 
+            onClick={(e) => { e.stopPropagation(); type === 'char' ? onRemoveChar(id) : onRemoveEnv(id); }}
+            className="size-7 bg-black/60 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-red-500 transition-all border border-white/10"
+          >
+            <span className="material-symbols-outlined text-[16px]">delete</span>
+          </button>
+        </div>
+      </>
     );
   };
 
@@ -107,7 +141,6 @@ const WorldBible: React.FC<WorldBibleProps> = ({ manifest, onAddChar, onAddEnv }
         <input type="file" ref={charInputRef} className="hidden" accept="image/*" onChange={e => handleFileImport(e, 'char')} />
         <input type="file" ref={envInputRef} className="hidden" accept="image/*" onChange={e => handleFileImport(e, 'env')} />
 
-        {/* Actor Portfolio Section */}
         <section>
           <div className="flex items-center justify-between mb-4 relative">
             <h4 className="text-[9px] text-gray-600 font-black uppercase tracking-[0.2em]">Actor Portfolio</h4>
@@ -124,39 +157,31 @@ const WorldBible: React.FC<WorldBibleProps> = ({ manifest, onAddChar, onAddEnv }
 
           {activeForm === 'char' && (
             <div className="mb-6 p-4 bg-black/40 rounded-xl border border-primary/20 space-y-3 animate-in slide-in-from-top-2 duration-300">
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-[8px] font-black uppercase tracking-widest text-primary">Synthesis Brief</span>
-                <button onClick={resetForm} className="text-gray-500 hover:text-white"><span className="material-symbols-outlined text-xs">close</span></button>
+              <input className="w-full bg-black/40 border-white/10 rounded text-xs text-white" placeholder="Name" value={name} onChange={e => setName(e.target.value)} />
+              <textarea className="w-full bg-black/40 border-white/10 rounded text-xs text-white h-20 resize-none" placeholder="Brief..." value={desc} onChange={e => setDesc(e.target.value)} />
+              <div className="flex gap-2">
+                <button onClick={resetForm} className="flex-1 text-[10px] font-bold uppercase text-gray-500">Cancel</button>
+                <button onClick={() => { onAddChar(name, desc); resetForm(); }} className="flex-[2] bg-primary text-black py-2 rounded text-[10px] font-black uppercase">Synthesize</button>
               </div>
-              <input className="w-full bg-black/40 border-white/10 rounded text-xs text-white placeholder:text-gray-700" placeholder="Character Name" value={name} onChange={e => setName(e.target.value)} />
-              <textarea className="w-full bg-black/40 border-white/10 rounded text-xs text-white h-20 placeholder:text-gray-700 resize-none" placeholder="Physical description, age, wardrobe details..." value={desc} onChange={e => setDesc(e.target.value)} />
-              <button 
-                onClick={() => { onAddChar(name, desc); resetForm(); }}
-                className="w-full bg-primary text-black py-2 rounded text-[10px] font-black uppercase shadow-[0_0_15px_rgba(236,182,19,0.3)] hover:scale-[1.02] transition-transform"
-              >
-                Synthesize Actor
-              </button>
             </div>
           )}
 
           <div className="space-y-4">
             {manifest.characters.map(char => (
-              <div key={char.id} className="group">
-                <div className="relative aspect-square rounded-xl overflow-hidden border border-white/5 shadow-2xl transition-all group-hover:border-primary/40">
-                  {renderAssetImage(char.image, char.name)}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent"></div>
-                  <div className="absolute bottom-3 left-3 right-3">
+              <div key={char.id} className="group relative cursor-pointer" onClick={() => onSelectAsset(char.id, 'char')}>
+                <div className={`relative aspect-square rounded-xl overflow-hidden border-2 transition-all group-hover:border-primary/40 ${selectedFrameAssets.charId === char.id ? 'border-primary ring-4 ring-primary/5' : 'border-white/5'}`}>
+                  {renderAssetImage(char.image, char.name, char.id, 'char')}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent pointer-events-none"></div>
+                  <div className="absolute bottom-3 left-3 right-3 pointer-events-none">
                     <p className="text-[11px] font-black text-white uppercase tracking-wider">{char.name}</p>
                     <p className="text-[8px] text-primary font-bold uppercase tracking-widest mt-0.5">{char.role}</p>
                   </div>
                 </div>
-                <p className="mt-2 text-[9px] text-gray-500 leading-relaxed line-clamp-2 px-1">{char.description}</p>
               </div>
             ))}
           </div>
         </section>
 
-        {/* Location Plates Section */}
         <section>
           <div className="flex items-center justify-between mb-4 relative">
             <h4 className="text-[9px] text-gray-600 font-black uppercase tracking-[0.2em]">Location Plates</h4>
@@ -173,30 +198,23 @@ const WorldBible: React.FC<WorldBibleProps> = ({ manifest, onAddChar, onAddEnv }
 
           {activeForm === 'env' && (
             <div className="mb-6 p-4 bg-black/40 rounded-xl border border-primary/20 space-y-3 animate-in slide-in-from-top-2 duration-300">
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-[8px] font-black uppercase tracking-widest text-primary">Location Brief</span>
-                <button onClick={resetForm} className="text-gray-500 hover:text-white"><span className="material-symbols-outlined text-xs">close</span></button>
+              <input className="w-full bg-black/40 border-white/10 rounded text-xs text-white" placeholder="Location Name" value={name} onChange={e => setName(e.target.value)} />
+              <textarea className="w-full bg-black/40 border-white/10 rounded text-xs text-white h-20 resize-none" placeholder="Brief..." value={desc} onChange={e => setDesc(e.target.value)} />
+              <div className="flex gap-2">
+                <button onClick={resetForm} className="flex-1 text-[10px] font-bold uppercase text-gray-500">Cancel</button>
+                <button onClick={() => { onAddEnv(name, desc); resetForm(); }} className="flex-[2] bg-primary text-black py-2 rounded text-[10px] font-black uppercase">Synthesize</button>
               </div>
-              <input className="w-full bg-black/40 border-white/10 rounded text-xs text-white placeholder:text-gray-700" placeholder="Site Title" value={name} onChange={e => setName(e.target.value)} />
-              <textarea className="w-full bg-black/40 border-white/10 rounded text-xs text-white h-20 placeholder:text-gray-700 resize-none" placeholder="Architecture, lighting, atmospheric mood..." value={desc} onChange={e => setDesc(e.target.value)} />
-              <button 
-                onClick={() => { onAddEnv(name, desc); resetForm(); }}
-                className="w-full bg-primary text-black py-2 rounded text-[10px] font-black uppercase shadow-[0_0_15px_rgba(236,182,19,0.3)] hover:scale-[1.02] transition-transform"
-              >
-                Synthesize Location
-              </button>
             </div>
           )}
 
           <div className="space-y-6">
             {manifest.environments.map(env => (
-              <div key={env.id} className="group cursor-pointer">
-                <div className="relative aspect-video rounded-xl overflow-hidden border border-white/5 shadow-2xl transition-all group-hover:border-primary/40">
-                  {renderAssetImage(env.image, env.name)}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent"></div>
-                  <div className="absolute bottom-3 left-3 right-3">
+              <div key={env.id} className="group relative cursor-pointer" onClick={() => onSelectAsset(env.id, 'env')}>
+                <div className={`relative aspect-video rounded-xl overflow-hidden border-2 transition-all group-hover:border-primary/40 ${selectedFrameAssets.envId === env.id ? 'border-primary ring-4 ring-primary/5' : 'border-white/5'}`}>
+                  {renderAssetImage(env.image, env.name, env.id, 'env')}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent pointer-events-none"></div>
+                  <div className="absolute bottom-3 left-3 right-3 pointer-events-none">
                     <p className="text-[10px] font-black text-white uppercase tracking-wider">{env.name}</p>
-                    <p className="text-[8px] text-primary font-bold uppercase tracking-widest mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">Visual Master Reference</p>
                   </div>
                 </div>
               </div>

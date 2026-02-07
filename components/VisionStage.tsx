@@ -8,19 +8,18 @@ interface VisionStageProps {
   onSelectFrame: (id: string) => void;
   onRefine: (id: string, prompt: string, coord?: { x: number, y: number }) => void;
   onPlayAudio: (id: string) => void;
+  onAppendFrame: () => void;
 }
 
-const VisionStage: React.FC<VisionStageProps> = ({ frames, selectedFrameId, onSelectFrame, onRefine, onPlayAudio }) => {
+const VisionStage: React.FC<VisionStageProps> = ({ frames, selectedFrameId, onSelectFrame, onRefine, onPlayAudio, onAppendFrame }) => {
   const [instruction, setInstruction] = useState("");
   const [clickCoord, setClickCoord] = useState<{ x: number, y: number } | null>(null);
 
-  // Fix: Use any for MouseEvent generic to bypass missing HTMLDivElement type
   const handleImageClick = (e: React.MouseEvent<any>, frameId: string) => {
     if (selectedFrameId !== frameId) {
       onSelectFrame(frameId);
       return;
     }
-    
     const rect = e.currentTarget.getBoundingClientRect();
     const x = Math.round(((e.clientX - rect.left) / rect.width) * 100);
     const y = Math.round(((e.clientY - rect.top) / rect.height) * 100);
@@ -46,10 +45,6 @@ const VisionStage: React.FC<VisionStageProps> = ({ frames, selectedFrameId, onSe
           <div className="h-4 w-px bg-white/10"></div>
           <p className="text-[10px] text-gray-500 font-medium">Mapped to Sequence Arc</p>
         </div>
-        <div className="flex items-center gap-3">
-          <button className="text-[10px] font-bold text-gray-500 hover:text-white uppercase tracking-widest transition-all">Spatial View</button>
-          <button className="bg-primary text-black px-3 py-1 rounded text-[10px] font-bold uppercase tracking-widest">Master Preview</button>
-        </div>
       </div>
 
       <div className="flex-1 overflow-x-auto overflow-y-hidden flex items-center px-12 gap-12 scroll-smooth">
@@ -64,12 +59,8 @@ const VisionStage: React.FC<VisionStageProps> = ({ frames, selectedFrameId, onSe
             >
               <img src={frame.image} alt={frame.prompt} className={`absolute inset-0 w-full h-full object-cover transition-transform duration-1000 ${selectedFrameId === frame.id ? 'scale-100' : 'scale-110'}`} />
               
-              {/* Click Marker */}
               {selectedFrameId === frame.id && clickCoord && (
-                <div 
-                  className="absolute size-6 border-2 border-primary rounded-full -translate-x-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none z-30"
-                  style={{ left: `${clickCoord.x}%`, top: `${clickCoord.y}%` }}
-                >
+                <div className="absolute size-6 border-2 border-primary rounded-full -translate-x-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none z-30" style={{ left: `${clickCoord.x}%`, top: `${clickCoord.y}%` }}>
                   <div className="size-1 bg-primary rounded-full animate-ping"></div>
                 </div>
               )}
@@ -77,9 +68,7 @@ const VisionStage: React.FC<VisionStageProps> = ({ frames, selectedFrameId, onSe
               {(frame.isGenerating || frame.isGeneratingAudio) && (
                 <div className="absolute inset-0 bg-black/60 backdrop-blur-md flex flex-col items-center justify-center z-40">
                   <div className="size-8 border-2 border-primary border-t-transparent rounded-full animate-spin mb-3"></div>
-                  <span className="text-[9px] font-bold text-primary uppercase tracking-[0.2em]">
-                    {frame.isGeneratingAudio ? 'Synthesizing Performance...' : 'Processing Nano Banana...'}
-                  </span>
+                  <span className="text-[9px] font-bold text-primary uppercase tracking-[0.2em]">Processing...</span>
                 </div>
               )}
 
@@ -92,46 +81,29 @@ const VisionStage: React.FC<VisionStageProps> = ({ frames, selectedFrameId, onSe
                     <span className="material-symbols-outlined font-bold">play_arrow</span>
                   </button>
 
-                  <div className="absolute bottom-6 left-6 right-6 opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0 z-40">
-                    <div className="flex items-center gap-2 bg-black/80 backdrop-blur-xl p-2 rounded-xl border border-white/10 shadow-2xl" onClick={e => e.stopPropagation()}>
+                  <div className="absolute bottom-6 left-6 right-6 opacity-0 group-hover:opacity-100 transition-all z-40" onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center gap-2 bg-black/80 backdrop-blur-xl p-2 rounded-xl border border-white/10 shadow-2xl">
                       <span className="material-symbols-outlined text-primary text-sm ml-2">draw</span>
                       <input 
-                        autoFocus
                         className="flex-1 bg-transparent border-none focus:ring-0 text-[11px] placeholder:text-gray-500 text-white" 
-                        placeholder={clickCoord ? `Editing target area [${clickCoord.x}, ${clickCoord.y}]...` : "Localized Paint-to-Edit: Click image to target region"} 
+                        placeholder={clickCoord ? `Repainting [${clickCoord.x}, ${clickCoord.y}]...` : "Target and Paint..."} 
                         value={instruction}
-                        // Fix: Cast e.target to any to resolve property 'value' missing error on HTMLInputElement
                         onChange={(e) => setInstruction((e.target as any).value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') handleRepaint();
-                        }}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleRepaint(); }}
                       />
-                      <button 
-                        onClick={handleRepaint}
-                        className="bg-primary text-black px-3 py-1.5 rounded-lg text-[9px] font-black uppercase"
-                      >
-                        REPAINT
-                      </button>
+                      <button onClick={handleRepaint} className="bg-primary text-black px-3 py-1.5 rounded-lg text-[9px] font-black uppercase">REPAINT</button>
                     </div>
                   </div>
                 </>
               )}
-
-              <div className="absolute top-4 left-4 flex gap-2 z-30">
-                <div className="bg-black/60 backdrop-blur-md px-2 py-0.5 rounded text-[9px] font-bold border border-white/10">{frame.title}</div>
-                <div className="bg-primary text-black px-2 py-0.5 rounded text-[9px] font-bold uppercase">{frame.timeRange}</div>
-              </div>
-            </div>
-            
-            <div className={`mt-4 px-1 transition-all ${selectedFrameId === frame.id ? 'opacity-100' : 'opacity-0'}`}>
-              <p className="text-[11px] text-gray-400 font-medium italic border-l-2 border-primary/40 pl-3 py-1">
-                "{frame.scriptSegment}"
-              </p>
             </div>
           </div>
         ))}
 
-        <div className="flex-shrink-0 w-80 aspect-video rounded-xl border-2 border-dashed border-white/5 flex flex-col items-center justify-center hover:bg-white/5 transition-all cursor-pointer group">
+        <div 
+          onClick={onAppendFrame}
+          className="flex-shrink-0 w-80 aspect-video rounded-xl border-2 border-dashed border-white/5 flex flex-col items-center justify-center hover:bg-white/5 transition-all cursor-pointer group"
+        >
           <span className="material-symbols-outlined text-gray-600 group-hover:text-primary transition-colors text-3xl">add_photo_alternate</span>
           <span className="text-[9px] font-bold text-gray-600 mt-2 uppercase tracking-widest">Append Sequence</span>
         </div>
