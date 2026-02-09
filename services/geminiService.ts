@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type, Modality } from "@google/genai";
-import { VisualManifest } from "../types";
+import { VisualManifest, Genre } from "../types";
 
 /**
  * Robust retry wrapper with exponential backoff to handle 429 (Rate Limit) errors.
@@ -96,7 +96,7 @@ export const analyzeManuscriptDeep = async (manuscript: string) => {
   });
 };
 
-export const generateSceneWithBrief = async (script: string, manifest: VisualManifest) => {
+export const generateSceneWithBrief = async (script: string, manifest: VisualManifest, genre: Genre) => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const charList = manifest.characters.map(c => `${c.name} (ID: ${c.id})`).join(', ');
   const envList = manifest.environments.map(e => `${e.name} (ID: ${e.id})`).join(', ');
@@ -104,18 +104,15 @@ export const generateSceneWithBrief = async (script: string, manifest: VisualMan
   return withRetry(async () => {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `As a Film Director, partition the ENTIRE provided script into a sequence of storyboard frames. 
+      contents: `As a Film Director specialized in ${genre} cinema, partition the ENTIRE provided script into a sequence of storyboard frames. 
       
       RULES:
       1. Use the Bible entities: Characters: ${charList}. Locations: ${envList}.
-      2. The "scriptSegment" for each frame MUST be the actual original text from the script. 
-      3. DO NOT SUMMARIZE or SKIP any part of the script. The sum of all scriptSegments must equal the full input script word-for-word.
-      4. For each frame's scriptSegment, you MUST wrap the original text in intense EMOTIONAL PERFORMANCE TAGS like [whispering breathlessly], [shouting in rage], [with cold urgency], [trembling with suppressed fear], or [menacingly quiet].
-      5. Example format for scriptSegment: "[weary awe] The skeletal remains of the bridge stretched across the lagoon."
+      2. The "scriptSegment" for each frame MUST be the actual original text.
+      3. Use intense EMOTIONAL PERFORMANCE TAGS suited for the ${genre} genre (e.g., if Comedy: [deadpan sarcasm], if Horror: [terrified stuttering]).
       
-      Vary the camera shots (Wide, Close-up, Low Angle, etc.) to match the pacing and tone.
-      
-      Script to partition: ${script}`,
+      Genre: ${genre}
+      Script: ${script}`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -153,38 +150,28 @@ export const generateNanoBananaImage = async (
 ) => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const parts: any[] = [];
-
   if (references.charId) {
     const char = manifest.characters.find(c => c.id === references.charId);
-    if (char?.image && char.image.startsWith('data:')) {
+    if (char?.image?.startsWith('data:')) {
       const b64 = await toBase64(char.image);
       parts.push({ inlineData: { mimeType: b64.mimeType, data: b64.data } });
-      parts.push({ text: `CHARACTER IDENTITY: This is ${char.name}. Maintain exact facial features, hairstyle, and costume.` });
+      parts.push({ text: `CHARACTER IDENTITY: This is ${char.name}.` });
     }
   }
-
   if (references.envId) {
     const env = manifest.environments.find(e => e.id === references.envId);
-    if (env?.image && env.image.startsWith('data:')) {
+    if (env?.image?.startsWith('data:')) {
       const b64 = await toBase64(env.image);
       parts.push({ inlineData: { mimeType: b64.mimeType, data: b64.data } });
-      parts.push({ text: `VISUAL DNA: Extract the architectural style, lighting temperature, and materials from this world reference. Apply them to the new perspective required by the ${references.shotType || 'shot'}.` });
+      parts.push({ text: `VISUAL DNA: Architecture and lighting from this world.` });
     }
   }
-
   if (baseImage) {
     const b64 = await toBase64(baseImage);
     parts.push({ inlineData: { mimeType: b64.mimeType, data: b64.data } });
-    if (clickCoord) parts.push({ text: `LOCAL EDIT: Focus the modification at region [x:${clickCoord.x}, y:${clickCoord.y}]. Instruction: ${prompt}` });
+    if (clickCoord) parts.push({ text: `LOCAL EDIT at [x:${clickCoord.x}, y:${clickCoord.y}]: ${prompt}` });
   }
-
-  const actionText = `CINEMATIC STORYBOARD: ${references.shotType || ''} showing ${prompt}. 
-  EMOTION: ${references.emotion || 'Intense'}. 
-  SPATIAL COHERENCE: Place the character deeply within the volume of the environment. Ensure the world's lighting (rim lights, bounce light) is physically reflected on the character's form. 
-  ${STYLE_GUIDE}`;
-  
-  parts.push({ text: actionText });
-
+  parts.push({ text: `CINEMATIC STORYBOARD: ${references.shotType || ''} showing ${prompt}. EMOTION: ${references.emotion || 'Intense'}. ${STYLE_GUIDE}` });
   return withRetry(async () => {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
@@ -196,36 +183,69 @@ export const generateNanoBananaImage = async (
   });
 };
 
-export const generateEmotionalAudio = async (text: string, brief: string) => {
+export const generateEmotionalAudio = async (text: string, brief: string, genre: Genre) => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  const inputPrompt = `Perform the following dialogue as a professional actor. 
-  Performance Brief: ${brief}.
   
-  Dialogue: ${text}`;
+  const isDialogue = /[:"].*?"/g.test(text) || text.includes('"') || text.includes("'");
+  
+  // Dynamic Voice selection based on Genre
+  let voiceName: 'Puck' | 'Charon' | 'Kore' | 'Fenrir' | 'Zephyr' = 'Charon';
+  let genreContext = "";
+
+  switch (genre) {
+    case 'Comedy':
+      voiceName = 'Puck'; 
+      genreContext = "with perfect comedic timing, high energy, and sharp wit.";
+      break;
+    case 'Horror':
+      voiceName = 'Fenrir';
+      genreContext = "with a deep, ominous, and terrifying atmosphere. Every pause should be heavy with dread.";
+      break;
+    case 'Action':
+      voiceName = 'Fenrir';
+      genreContext = "with high intensity, grit, and aggressive pacing.";
+      break;
+    case 'Drama':
+    case 'Noir':
+      voiceName = isDialogue ? 'Kore' : 'Charon';
+      genreContext = "with deep emotional resonance and cinematic gravitas.";
+      break;
+    case 'Sci-Fi':
+      voiceName = 'Zephyr';
+      genreContext = "with a precise, slightly detached, and futuristic authority.";
+      break;
+  }
+
+  // Moving instructions into the main text prompt to avoid 500 Internal Errors 
+  // often caused by complex systemInstructions in the current TTS preview.
+  const performancePrompt = `
+    INSTRUCTION: Perform the following script ${genreContext}. 
+    The script contains bracketed emotional cues [like this]. 
+    STRICT RULE: DO NOT SPEAK THE BRACKETED TEXT ALOUD. Use it ONLY to guide your vocal delivery.
+    PERSONA: ${isDialogue ? 'Master Character Actor' : 'Cinematic Narrator'}.
+    
+    SCRIPT: 
+    ${text}
+  `.trim();
 
   return withRetry(async () => {
     try {
       const response = await ai.models.generateContent({
         model: "gemini-2.5-flash-preview-tts",
-        contents: [{ parts: [{ text: inputPrompt }] }],
+        contents: [{ parts: [{ text: performancePrompt }] }],
         config: {
           responseModalities: [Modality.AUDIO],
-          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } } },
-          systemInstruction: `PERFORMANCE DIRECTIVE: You are an award-winning voice actor. 
-          Your script contains [tags] like [whispering breathlessly] or [shouting]. DO NOT read these tags aloud. 
-          Instead, interpret them as cues to radically shift your vocal performance, intensity, and timing. 
-          Maintain perfect character immersion. The dialogue provided IS the script to be read.`
+          speechConfig: { 
+            voiceConfig: { 
+              prebuiltVoiceConfig: { voiceName } 
+            } 
+          }
         },
       });
       return response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-    } catch {
-      // Fallback if the advanced TTS fails
-      const fallback = await ai.models.generateContent({
-        model: "gemini-2.5-flash-preview-tts",
-        contents: [{ parts: [{ text: text.replace(/\[.*?\]/g, '') }] }],
-        config: { responseModalities: [Modality.AUDIO] }
-      });
-      return fallback.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+    } catch (err) {
+      console.error("Advanced TTS synthesis failed:", err);
+      return null;
     }
   });
 };

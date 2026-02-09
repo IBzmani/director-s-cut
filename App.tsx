@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { INITIAL_SCENE } from './constants';
-import { SceneState, Character, Environment, Frame } from './types';
+import { SceneState, Character, Environment, Frame, Genre } from './types';
 import Header from './components/Header';
 import SidebarScript from './components/SidebarScript';
 import VisionStage from './components/VisionStage';
@@ -19,97 +19,29 @@ const App: React.FC = () => {
 
   const addCharacter = async (name: string, description: string, imageUrl?: string) => {
     const id = `c-${Date.now()}`;
-    const newChar: Character = { 
-      id, 
-      name, 
-      role: "Principal", 
-      description, 
-      image: imageUrl || 'loading://character' 
-    };
-    
-    setScene(prev => ({
-      ...prev,
-      manifest: { 
-        ...prev.manifest, 
-        characters: [...prev.manifest.characters.filter(c => c.id !== 'c1'), newChar] 
-      }
-    }));
-
+    const newChar: Character = { id, name, role: "Principal", description, image: imageUrl || 'loading://character' };
+    setScene(prev => ({ ...prev, manifest: { ...prev.manifest, characters: [...prev.manifest.characters.filter(c => c.id !== 'c1'), newChar] } }));
     if (imageUrl) return;
-
     try {
       const img = await generateBibleAsset(name, description, 'character');
-      if (img) {
-        setScene(prev => ({
-          ...prev,
-          manifest: { 
-            ...prev.manifest, 
-            characters: prev.manifest.characters.map(c => c.id === id ? { ...c, image: img } : c) 
-          }
-        }));
-      }
-    } catch (err) {
-      console.error("Failed to generate character xplate:", err);
-      removeCharacter(id);
-    }
+      if (img) setScene(prev => ({ ...prev, manifest: { ...prev.manifest, characters: prev.manifest.characters.map(c => c.id === id ? { ...c, image: img } : c) } }));
+    } catch (err) { removeCharacter(id); }
   };
 
-  const removeCharacter = (id: string) => {
-    setScene(prev => ({
-      ...prev,
-      manifest: {
-        ...prev.manifest,
-        characters: prev.manifest.characters.filter(c => c.id !== id)
-      }
-    }));
-  };
+  const removeCharacter = (id: string) => setScene(prev => ({ ...prev, manifest: { ...prev.manifest, characters: prev.manifest.characters.filter(c => c.id !== id) } }));
 
   const addEnvironment = async (name: string, description: string, imageUrl?: string) => {
     const id = `e-${Date.now()}`;
-    const newEnv: Environment = { 
-      id, 
-      name, 
-      mood: "Concept", 
-      colors: ['#555'], 
-      image: imageUrl || 'loading://environment' 
-    };
-    
-    setScene(prev => ({
-      ...prev,
-      manifest: { 
-        ...prev.manifest, 
-        environments: [...prev.manifest.environments.filter(e => e.id !== 'e1'), newEnv] 
-      }
-    }));
-
+    const newEnv: Environment = { id, name, mood: "Concept", colors: ['#555'], image: imageUrl || 'loading://environment' };
+    setScene(prev => ({ ...prev, manifest: { ...prev.manifest, environments: [...prev.manifest.environments.filter(e => e.id !== 'e1'), newEnv] } }));
     if (imageUrl) return;
-
     try {
       const img = await generateBibleAsset(name, description, 'environment');
-      if (img) {
-        setScene(prev => ({
-          ...prev,
-          manifest: { 
-            ...prev.manifest, 
-            environments: prev.manifest.environments.map(e => e.id === id ? { ...e, image: img } : e) 
-          }
-        }));
-      }
-    } catch (err) {
-      console.error("Failed to generate location plate:", err);
-      removeEnvironment(id);
-    }
+      if (img) setScene(prev => ({ ...prev, manifest: { ...prev.manifest, environments: prev.manifest.environments.map(e => e.id === id ? { ...e, image: img } : e) } }));
+    } catch (err) { removeEnvironment(id); }
   };
 
-  const removeEnvironment = (id: string) => {
-    setScene(prev => ({
-      ...prev,
-      manifest: {
-        ...prev.manifest,
-        environments: prev.manifest.environments.filter(e => e.id !== id)
-      }
-    }));
-  };
+  const removeEnvironment = (id: string) => setScene(prev => ({ ...prev, manifest: { ...prev.manifest, environments: prev.manifest.environments.filter(e => e.id !== id) } }));
 
   const assignAssetToFrame = (assetId: string, type: 'char' | 'env') => {
     if (!selectedFrameId) return;
@@ -117,9 +49,7 @@ const App: React.FC = () => {
       ...prev,
       frames: prev.frames.map(f => {
         if (f.id === selectedFrameId) {
-          return type === 'char' 
-            ? { ...f, characterId: assetId } as any
-            : { ...f, environmentId: assetId } as any;
+          return type === 'char' ? { ...f, characterId: assetId } as any : { ...f, environmentId: assetId } as any;
         }
         return f;
       })
@@ -128,7 +58,6 @@ const App: React.FC = () => {
 
   const appendFrame = () => {
     const id = `f-ext-${Date.now()}`;
-    const lastFrame = scene.frames[scene.frames.length - 1];
     const newFrame: Frame = {
       id,
       title: `Frame ${String(scene.frames.length + 1).padStart(2, '0')}`,
@@ -136,12 +65,7 @@ const App: React.FC = () => {
       image: "https://placehold.co/1280x720/1a1a1a/444?text=Empty+Shot",
       prompt: "New shot description...",
       scriptSegment: "...",
-      directorsBrief: {
-        emotionalArc: "Neutral",
-        lightingScheme: "Standard",
-        cameraLogic: "Static",
-        pacing: "Moderate"
-      }
+      directorsBrief: { emotionalArc: "Neutral", lightingScheme: "Standard", cameraLogic: "Static", pacing: "Moderate" }
     };
     setScene(prev => ({ ...prev, frames: [...prev.frames, newFrame] }));
     setSelectedFrameId(id);
@@ -153,32 +77,23 @@ const App: React.FC = () => {
       const analysis = await analyzeManuscriptDeep(text);
       const characters = (analysis.characters || []).map((c: any, i: number) => ({ ...c, id: `c-auto-${i}`, image: 'loading://character' }));
       const environments = (analysis.environments || []).map((e: any, i: number) => ({ ...e, id: `e-auto-${i}`, image: 'loading://environment' }));
-      
-      setScene(prev => ({ 
-        ...prev, 
-        script: text, 
-        manifest: { ...prev.manifest, characters, environments } 
-      }));
-
+      setScene(prev => ({ ...prev, script: text, manifest: { ...prev.manifest, characters, environments } }));
       characters.forEach(async (char: any) => {
         const img = await generateBibleAsset(char.name, char.description, 'character');
         if (img) setScene(prev => ({ ...prev, manifest: { ...prev.manifest, characters: prev.manifest.characters.map(c => c.id === char.id ? { ...c, image: img } : c) } }));
       });
-
       environments.forEach(async (env: any) => {
         const img = await generateBibleAsset(env.name, env.mood, 'environment');
         if (img) setScene(prev => ({ ...prev, manifest: { ...prev.manifest, environments: prev.manifest.environments.map(e => e.id === env.id ? { ...e, image: img } : e) } }));
       });
-    } finally {
-      setIsGenerating(false);
-    }
+    } finally { setIsGenerating(false); }
   };
 
   const handleGenerateStoryboard = async () => {
     if (isGenerating) return;
     setIsGenerating(true);
     try {
-      const data = await generateSceneWithBrief(scene.script, scene.manifest);
+      const data = await generateSceneWithBrief(scene.script, scene.manifest, scene.genre);
       const newFrames = data.frames.map((f: any, i: number) => ({
         ...f,
         id: `f-${i}-${Date.now()}`,
@@ -186,39 +101,17 @@ const App: React.FC = () => {
         image: 'https://placehold.co/1280x720/1a1a1a/ecb613?text=Composing+Shot...',
         isGenerating: true
       }));
-
       setScene(prev => ({ ...prev, frames: newFrames }));
       if (newFrames.length > 0) setSelectedFrameId(newFrames[0].id);
-
       for (let frame of newFrames) {
         try {
-          const url = await generateNanoBananaImage(
-            frame.prompt, 
-            scene.manifest, 
-            { 
-              charId: frame.characterId, 
-              envId: frame.environmentId, 
-              shotType: frame.shotType,
-              emotion: frame.directorsBrief?.emotionalArc 
-            }
-          );
-          if (url) {
-            setScene(prev => ({
-              ...prev,
-              frames: prev.frames.map(f => f.id === frame.id ? { ...f, image: url, isGenerating: false } : f)
-            }));
-          }
+          const url = await generateNanoBananaImage(frame.prompt, scene.manifest, { charId: frame.characterId, envId: frame.environmentId, shotType: frame.shotType, emotion: frame.directorsBrief?.emotionalArc });
+          if (url) setScene(prev => ({ ...prev, frames: prev.frames.map(f => f.id === frame.id ? { ...f, image: url, isGenerating: false } : f) }));
         } catch (err) {
-          console.error("Frame generation failed:", err);
-          setScene(prev => ({
-            ...prev,
-            frames: prev.frames.map(f => f.id === frame.id ? { ...f, isGenerating: false, image: 'https://placehold.co/1280x720/333/fff?text=Error' } : f)
-          }));
+          setScene(prev => ({ ...prev, frames: prev.frames.map(f => f.id === frame.id ? { ...f, isGenerating: false, image: 'https://placehold.co/1280x720/333/fff?text=Error' } : f) }));
         }
       }
-    } finally {
-      setIsGenerating(false);
-    }
+    } finally { setIsGenerating(false); }
   };
 
   const handleExportMovie = async () => {
@@ -229,14 +122,10 @@ const App: React.FC = () => {
       const videoUrl = await exportCinemaMovie(scene.frames, (p) => setExportProgress(p));
       const a = (window as any).document.createElement('a');
       a.href = videoUrl;
-      a.download = `${scene.title || 'Director_Cut'}.mp4`;
+      a.download = `${scene.title || 'Lorecast'}.mp4`;
       a.click();
-    } catch (err) {
-      console.error("Movie export failed:", err);
-      (window as any).alert("Export failed. Ensure frames have both visuals and audio synthesized.");
-    } finally {
-      setIsExporting(false);
-    }
+    } catch (err) { (window as any).alert("Export failed."); }
+    finally { setIsExporting(false); }
   };
 
   const handlePaintToEdit = async (frameId: string, instruction: string, coord?: { x: number, y: number }) => {
@@ -244,22 +133,9 @@ const App: React.FC = () => {
     if (!target) return;
     setScene(prev => ({ ...prev, frames: prev.frames.map(f => f.id === frameId ? { ...f, isGenerating: true } : f) }));
     try {
-      const editedUrl = await generateNanoBananaImage(
-        instruction, 
-        scene.manifest, 
-        { 
-          charId: (target as any).characterId, 
-          envId: (target as any).environmentId,
-          shotType: (target as any).shotType,
-          emotion: (target as any).directorsBrief?.emotionalArc
-        }, 
-        target.image, 
-        coord
-      );
+      const editedUrl = await generateNanoBananaImage(instruction, scene.manifest, { charId: (target as any).characterId, envId: (target as any).environmentId, shotType: (target as any).shotType, emotion: (target as any).directorsBrief?.emotionalArc }, target.image, coord);
       if (editedUrl) setScene(prev => ({ ...prev, frames: prev.frames.map(f => f.id === frameId ? { ...f, image: editedUrl, isGenerating: false } : f) }));
-    } catch (err) {
-      setScene(prev => ({ ...prev, frames: prev.frames.map(f => f.id === frameId ? { ...f, isGenerating: false } : f) }));
-    }
+    } catch (err) { setScene(prev => ({ ...prev, frames: prev.frames.map(f => f.id === frameId ? { ...f, isGenerating: false } : f) })); }
   };
 
   const handleSynthesizeAudio = async (frameId: string) => {
@@ -267,14 +143,12 @@ const App: React.FC = () => {
     if (!frame?.scriptSegment) return;
     setScene(prev => ({ ...prev, frames: prev.frames.map(f => f.id === frameId ? { ...f, isGeneratingAudio: true } : f) }));
     try {
-      const audio = await generateEmotionalAudio(frame.scriptSegment, frame.directorsBrief?.emotionalArc || "Dramatic");
+      const audio = await generateEmotionalAudio(frame.scriptSegment, frame.directorsBrief?.emotionalArc || "Dramatic", scene.genre);
       if (audio) {
         setScene(prev => ({ ...prev, frames: prev.frames.map(f => f.id === frameId ? { ...f, audioData: audio, isGeneratingAudio: false } : f) }));
         playAudio(audio);
       }
-    } catch (err) {
-      setScene(prev => ({ ...prev, frames: prev.frames.map(f => f.id === frameId ? { ...f, isGeneratingAudio: false } : f) }));
-    }
+    } catch (err) { setScene(prev => ({ ...prev, frames: prev.frames.map(f => f.id === frameId ? { ...f, isGeneratingAudio: false } : f) })); }
   };
 
   const playAudio = async (base64: string) => {
@@ -297,46 +171,29 @@ const App: React.FC = () => {
 
   return (
     <div className="flex flex-col h-screen bg-background-dark text-white font-display overflow-hidden relative">
-      <Header 
-        onGenerate={handleGenerateStoryboard} 
-        onExport={handleExportMovie} 
-        isGenerating={isGenerating} 
-        isExporting={isExporting} 
-      />
+      <Header onGenerate={handleGenerateStoryboard} onExport={handleExportMovie} isGenerating={isGenerating} isExporting={isExporting} />
       <main className="flex flex-1 overflow-hidden">
-        <SidebarScript script={scene.script} onScriptChange={(s) => setScene(prev => ({ ...prev, script: s }))} location={scene.location} title={scene.title} highlightText={selectedFrame?.scriptSegment} onUpload={handleManuscriptUpload} />
-        <VisionStage 
-          frames={scene.frames} 
-          selectedFrameId={selectedFrameId} 
-          onSelectFrame={setSelectedFrameId} 
-          onRefine={handlePaintToEdit} 
-          onPlayAudio={handleSynthesizeAudio} 
-          onAppendFrame={appendFrame}
+        <SidebarScript 
+          script={scene.script} 
+          genre={scene.genre}
+          onScriptChange={(s) => setScene(prev => ({ ...prev, script: s }))} 
+          onGenreChange={(g) => setScene(prev => ({ ...prev, genre: g }))}
+          location={scene.location} 
+          title={scene.title} 
+          highlightText={selectedFrame?.scriptSegment} 
+          onUpload={handleManuscriptUpload} 
         />
-        <WorldBible 
-          manifest={scene.manifest} 
-          onAddChar={addCharacter} 
-          onRemoveChar={removeCharacter}
-          onAddEnv={addEnvironment} 
-          onRemoveEnv={removeEnvironment}
-          onSelectAsset={assignAssetToFrame}
-          selectedFrameAssets={{
-            charId: (selectedFrame as any)?.characterId,
-            envId: (selectedFrame as any)?.environmentId
-          }}
-        />
+        <VisionStage frames={scene.frames} selectedFrameId={selectedFrameId} onSelectFrame={setSelectedFrameId} onRefine={handlePaintToEdit} onPlayAudio={handleSynthesizeAudio} onAppendFrame={appendFrame} />
+        <WorldBible manifest={scene.manifest} onAddChar={addCharacter} onRemoveChar={removeCharacter} onAddEnv={addEnvironment} onRemoveEnv={removeEnvironment} onSelectAsset={assignAssetToFrame} selectedFrameAssets={{ charId: (selectedFrame as any)?.characterId, envId: (selectedFrame as any)?.environmentId }} />
       </main>
       <TimelineFooter sentimentData={scene.sentimentData} currentBrief={selectedFrame?.directorsBrief} shotType={(selectedFrame as any)?.shotType} />
-
       {isExporting && (
         <div className="absolute inset-0 bg-black/90 backdrop-blur-2xl z-[100] flex flex-col items-center justify-center">
           <div className="w-[500px] flex flex-col items-center">
             <div className="size-20 border-4 border-primary border-t-transparent rounded-full animate-spin mb-8 shadow-[0_0_30px_rgba(236,182,19,0.2)]"></div>
             <h2 className="text-2xl font-bold tracking-tight mb-2">Rendering Cinema Movie</h2>
             <p className="text-gray-500 text-sm uppercase tracking-widest font-bold mb-10">Stitching Sequence: {exportProgress}%</p>
-            <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden mb-4">
-              <div className="h-full bg-primary" style={{ width: `${exportProgress}%` }}></div>
-            </div>
+            <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden mb-4"><div className="h-full bg-primary" style={{ width: `${exportProgress}%` }}></div></div>
           </div>
         </div>
       )}

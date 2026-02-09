@@ -20,7 +20,6 @@ export interface Motif {
   label: string;
   icon: string;
   description: string;
-  // Added optional frequency property to support existing data and metadata
   frequency?: string;
 }
 
@@ -31,6 +30,8 @@ export interface DirectorsBrief {
   pacing: string;
 }
 
+export type Genre = 'Drama' | 'Comedy' | 'Horror' | 'Action' | 'Sci-Fi' | 'Noir';
+
 export interface Frame {
   id: string;
   title: string;
@@ -40,8 +41,9 @@ export interface Frame {
   scriptSegment?: string;
   directorsBrief?: DirectorsBrief;
   isGenerating?: boolean;
-  audioData?: string; // Base64 encoded PCM audio
+  audioData?: string; 
   isGeneratingAudio?: boolean;
+  shotType?: string;
 }
 
 export interface VisualManifest {
@@ -54,12 +56,12 @@ export interface SceneState {
   title: string;
   location: string;
   script: string;
+  genre: Genre;
   frames: Frame[];
   manifest: VisualManifest;
   sentimentData: { time: string; value: number; suspense: number }[];
 }
 
-// Global declaration for the aistudio API key selection tools
 declare global {
   interface AIStudio {
     hasSelectedApiKey: () => Promise<boolean>;

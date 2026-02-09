@@ -4,6 +4,7 @@ import { SceneState } from './types';
 export const INITIAL_SCENE: SceneState = {
   title: "Scene 4: The Neon Encounter",
   location: "EXT. NEO-TOKYO - NIGHT",
+  genre: "Noir",
   script: `The rain slicks the pavement, reflecting a kaleidoscope of holographic advertisements. Kaito pulls his collar up against the chill.
 
 KAITO: "I thought you'd be taller."
@@ -47,7 +48,6 @@ SHADOW: "And I thought you'd be smarter than to show up unarmed."`,
       }
     ],
     motifs: [
-      // Added missing description property to satisfy the Motif interface and fix compiler error
       { id: "m1", label: "Rain Refraction", icon: "water_drop", frequency: "High", description: "Visual distortions of neon light on wet asphalt." },
       { id: "m2", label: "Neon Contrast", icon: "flare", frequency: "Moderate", description: "High contrast between dark shadows and vibrant holographic light." }
     ]
